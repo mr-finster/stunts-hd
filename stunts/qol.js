@@ -6,6 +6,8 @@
 //   F6             your files (saved replays and tracks): download them; drop .TRK / .RPL files on the page
 //   gamepad        stick or d-pad steers (partly, by how far), RT/A accelerate, LT/B brake, RB/LB gear
 //                  up/down, X camera, Y dashboard, Start menu, Back restart; in menus: d-pad, A, B
+//   touch          on a phone or tablet: buttons over the race (steer, gas, brake, gears, camera, rewind, restart,
+//                  menu, HD); menus and the replay are tapped
 //   switching away pauses a race (and lets go of held keys); speed and gear show while racing without the
 //   dashboard
 // Uses the page's globals: mem, k, SCAN, view, StuntsCode, saved, inbox, startAudio.
@@ -294,6 +296,90 @@
     }
   }
   addEventListener('gamepadconnected', e => say('Gamepad: ' + e.gamepad.id.replace(/\s*\(.*$/, '')));
+
+  // ---- touch: on a phone or tablet, buttons over the race (steer, accelerate, brake, gears, camera, rewind, restart,
+  // menu), each a key held while it's touched, as the keyboard's (through the page's key handler: Q rewinds, R restarts);
+  // menus and the replay panel are worked by tapping, as with the mouse. Only once the screen has been touched: a
+  // computer with a mouse never sees them
+  const touch = (() => {
+    const root = document.createElement('div'); root.id = 'touch';
+    const css = document.createElement('style');
+    css.textContent = `
+      #touch { position: fixed; inset: 0; z-index: 9; pointer-events: none; display: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+      #touch.on { display: block; }
+      #touch button { position: absolute; pointer-events: auto; touch-action: none; border: 2px solid rgba(255,255,255,.55); background: rgba(0,0,0,.28);
+        color: #fff; font: 700 clamp(13px, 2.4vmin, 20px) ui-monospace, Menlo, monospace; border-radius: 50%; padding: 0; opacity: .7;
+        -webkit-tap-highlight-color: transparent; display: grid; place-items: center; }
+      #touch button.down { background: rgba(255,247,33,.45); opacity: 1; }
+      #touch .big { width: clamp(64px, 17vmin, 104px); height: clamp(64px, 17vmin, 104px); font-size: clamp(22px, 5vmin, 34px); }
+      #touch .small { width: clamp(40px, 10vmin, 60px); height: clamp(40px, 10vmin, 60px); border-radius: 12px; }
+      #touch .tip { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); padding: .6em 1em; border-radius: 8px;
+        background: rgba(0,0,0,.7); color: #fff; font: 600 15px system-ui, sans-serif; display: none; }
+      #touch.portrait .tip { display: block; }
+      #touch.auto .gear { display: none; }`;
+    document.head.appendChild(css);
+    // (where each sits: from the screen's edges, past a phone's notch and home bar)
+    const E = 'max(12px, env(safe-area-inset-left))', R = 'max(12px, env(safe-area-inset-right))', B = 'max(14px, env(safe-area-inset-bottom))', T = 'max(10px, env(safe-area-inset-top))';
+    const BIG = 'clamp(64px, 17vmin, 104px)', GAP = 'clamp(10px, 3vmin, 22px)', SM = 'clamp(46px, 12vmin, 70px)';
+    // (the driving buttons above the time and the speed, which the game shows in the bottom corners; the small ones
+    // under the track's name, top right, clear of the messages top left)
+    const BB = `calc(${B} + clamp(34px, 10vmin, 52px))`, TT = `calc(${T} + clamp(18px, 5vmin, 26px))`;
+    const BUTTONS = [
+      // [label, key, class, css place]
+      ['◀', 'ArrowLeft', 'big', `left:${E};bottom:${BB}`],
+      ['▶', 'ArrowRight', 'big', `left:calc(${E} + ${BIG} + ${GAP});bottom:${BB}`],
+      ['▲', 'ArrowUp', 'big', `right:${R};bottom:calc(${BB} + ${BIG} + ${GAP})`],
+      ['▼', 'ArrowDown', 'big', `right:calc(${R} + ${BIG} + ${GAP});bottom:${BB}`],
+      ['A', 'KeyA', 'small gear', `right:calc(${R} + (${BIG} - clamp(40px, 10vmin, 60px)) / 2);bottom:${BB}`],
+      ['Z', 'KeyZ', 'small gear', `right:calc(${R} + ${BIG} + ${GAP} + (${BIG} - clamp(40px, 10vmin, 60px)) / 2);bottom:calc(${BB} + ${BIG} + ${GAP})`],
+      ['C', 'KeyC', 'small', `right:${R};top:${TT}`],
+      ['⟲', 'KeyQ', 'small', `right:calc(${R} + ${SM});top:${TT}`],
+      ['R', 'KeyR', 'small', `right:calc(${R} + 2 * ${SM});top:${TT}`],
+      ['☰', 'Escape', 'small', `right:calc(${R} + 3 * ${SM});top:${TT}`],
+      ['HD', 'KeyH', 'small', `right:calc(${R} + 4 * ${SM});top:${TT}`],   // (the HD look or the original's, as H)
+    ];
+    const press = (code, down) => { if (typeof key === 'function') key({ code, key: code === 'Escape' ? 'Escape' : code.replace(/^Key/, '').toLowerCase(), repeat: false, preventDefault() {} }, down); };
+    for (const [label, code, cls, place] of BUTTONS) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = cls; b.style.cssText = place;
+      b.setAttribute('aria-label', code);
+      let id = null;
+      const up = e => { if (e.pointerId !== id) return; id = null; b.classList.remove('down'); press(code, false); };
+      b.addEventListener('pointerdown', e => {
+        e.preventDefault(); e.stopPropagation();   // (not the game's mouse: main.js listens on the window)
+        if (id != null) return;
+        id = e.pointerId; try { b.setPointerCapture(id); } catch (_) {}
+        b.classList.add('down'); press(code, true);
+      });
+      for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, e => { e.stopPropagation(); up(e); });
+      b.addEventListener('pointermove', e => e.stopPropagation());
+      b.addEventListener('contextmenu', e => e.preventDefault());
+      root.appendChild(b);
+    }
+    const tip = document.createElement('div'); tip.className = 'tip'; tip.textContent = '↻ Turn your phone sideways'; root.appendChild(tip);
+    document.body.appendChild(root);
+    let used = false;
+    const use = e => {
+      if (e.pointerType !== 'touch' || used) return;
+      used = true;
+      document.documentElement.style.touchAction = 'none';   // (no scrolling or zooming the game by accident)
+    };
+    addEventListener('pointerdown', use, true);
+    // shown while racing (not in a replay, its panel is tapped); let go of everything when they go. Once shown they stay
+    // through a stall of up to 2 s (a slow phone, a hiccup), so a held button isn't let go of in the middle of a race
+    let shown = false;
+    setInterval(() => {
+      const age = view ? performance.now() - (view.lastFrame || 0) : 1e9;
+      // (Q held: winding back runs as the Replay Menu does, the replay mode on for a moment; they stay, Q stays held)
+      const race = view && view.raceView && (rwHeld || (r8(S.game_replay_mode) === 0 && (racing() || (shown && age < 2000))));
+      const on = used && !!race && !document.getElementById('setup');
+      root.classList.toggle('portrait', on && innerHeight > innerWidth * 1.1);
+      root.classList.toggle('auto', !!r8(PS + 0xcc));   // (gears up and down only with the manual gearbox)
+      if (on === shown) return;
+      shown = on; root.classList.toggle('on', on);
+      if (!on) for (const b of root.querySelectorAll('button.down')) { b.classList.remove('down'); press(b.getAttribute('aria-label'), false); }
+    }, 150);
+    return { root };
+  })();
 
   // ---- speed and gear while racing without the dashboard
   const hud = document.createElement('div');

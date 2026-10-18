@@ -43,7 +43,7 @@ and crashes are the original's, because it is the original's code.
 | Track editor, More Tracks, custom `.TRK` tracks | Working |
 | Add-on cars (e.g. the ZakStunts pack) | Working |
 | Ghost car, track sharing (Import/Export) | Working |
-| Keyboard and gamepad | Working |
+| Keyboard, gamepad, touch (phones and tablets) | Working |
 | Desktop app: macOS, Windows, Linux | Working |
 | Other versions of the game (4D Sports Driving and others) | Not yet: Stunts 1.1 only |
 | Steam Deck Game Mode | Not working: desktop mode only |
@@ -119,6 +119,9 @@ Stunts has a lively community, and other projects take different routes. All but
 | <kbd>^</kbd> / <kbd>`</kbd> | How it runs: frames a second, the slowest frame, the game's own frames (the key left of 1) |
 
 Gamepad: stick or d-pad to steer, triggers to drive.
+
+Touch (a phone or tablet, held sideways): buttons over the race, shown once the screen is touched: steer, accelerate,
+brake, gears (manual gearbox), camera, rewind (hold), restart, race menu and HD. Menus and the replay panel are tapped.
 
 ## How it works
 
