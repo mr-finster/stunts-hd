@@ -307,12 +307,16 @@
     css.textContent = `
       #touch { position: fixed; inset: 0; z-index: 9; pointer-events: none; display: none; touch-action: none; user-select: none; -webkit-user-select: none; }
       #touch.on { display: block; }
-      #touch button { position: absolute; pointer-events: auto; touch-action: none; border: 2px solid rgba(255,255,255,.55); background: rgba(0,0,0,.28);
-        color: #fff; font: 700 clamp(13px, 2.4vmin, 20px) ui-monospace, Menlo, monospace; border-radius: 50%; padding: 0; opacity: .7;
-        -webkit-tap-highlight-color: transparent; display: grid; place-items: center; }
-      #touch button.down { background: rgba(255,247,33,.45); opacity: 1; }
-      #touch .big { width: clamp(64px, 17vmin, 104px); height: clamp(64px, 17vmin, 104px); font-size: clamp(22px, 5vmin, 34px); }
-      #touch .small { width: clamp(40px, 10vmin, 60px); height: clamp(40px, 10vmin, 60px); border-radius: 12px; }
+      /* the game's own buttons (as the track menu's Import / Export): grey, light edges top and left, dark bottom and right,
+         the label in the game's font; pressed, the edges swap */
+      #touch button { position: absolute; pointer-events: auto; touch-action: none; border: 0; border-radius: 0; padding: 0; background: #aaa;
+        box-shadow: inset var(--tb) var(--tb) 0 #fff, inset calc(-1 * var(--tb)) calc(-1 * var(--tb)) 0 #555;
+        -webkit-tap-highlight-color: transparent; display: grid; place-items: center; opacity: .85; }
+      #touch button.down { box-shadow: inset var(--tb) var(--tb) 0 #555, inset calc(-1 * var(--tb)) calc(-1 * var(--tb)) 0 #fff; background: #999; opacity: 1; }
+      #touch button canvas { display: block; position: static; transform: none; image-rendering: pixelated; pointer-events: none; }
+      #touch button.down canvas { translate: var(--tb) var(--tb); }
+      #touch .big { width: clamp(64px, 17vmin, 104px); height: clamp(64px, 17vmin, 104px); }
+      #touch .small { width: clamp(40px, 10vmin, 60px); height: clamp(40px, 10vmin, 60px); }
       #touch .tip { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); padding: .6em 1em; border-radius: 8px;
         background: rgba(0,0,0,.7); color: #fff; font: 600 15px system-ui, sans-serif; display: none; }
       #touch.portrait .tip { display: block; }
@@ -326,21 +330,65 @@
     const BB = `calc(${B} + clamp(34px, 10vmin, 52px))`, TT = `calc(${T} + clamp(18px, 5vmin, 26px))`;
     const BUTTONS = [
       // [label, key, class, css place]
-      ['◀', 'ArrowLeft', 'big', `left:${E};bottom:${BB}`],
-      ['▶', 'ArrowRight', 'big', `left:calc(${E} + ${BIG} + ${GAP});bottom:${BB}`],
-      ['▲', 'ArrowUp', 'big', `right:${R};bottom:calc(${BB} + ${BIG} + ${GAP})`],
-      ['▼', 'ArrowDown', 'big', `right:calc(${R} + ${BIG} + ${GAP});bottom:${BB}`],
+      ['<', 'ArrowLeft', 'big', `left:${E};bottom:${BB}`],
+      ['>', 'ArrowRight', 'big', `left:calc(${E} + ${BIG} + ${GAP});bottom:${BB}`],
+      ['^', 'ArrowUp', 'big', `right:${R};bottom:calc(${BB} + ${BIG} + ${GAP})`],
+      ['v', 'ArrowDown', 'big', `right:calc(${R} + ${BIG} + ${GAP});bottom:${BB}`],
       ['A', 'KeyA', 'small gear', `right:calc(${R} + (${BIG} - clamp(40px, 10vmin, 60px)) / 2);bottom:${BB}`],
       ['Z', 'KeyZ', 'small gear', `right:calc(${R} + ${BIG} + ${GAP} + (${BIG} - clamp(40px, 10vmin, 60px)) / 2);bottom:calc(${BB} + ${BIG} + ${GAP})`],
-      ['C', 'KeyC', 'small', `right:${R};top:${TT}`],
-      ['⟲', 'KeyQ', 'small', `right:calc(${R} + ${SM});top:${TT}`],
-      ['R', 'KeyR', 'small', `right:calc(${R} + 2 * ${SM});top:${TT}`],
-      ['☰', 'Escape', 'small', `right:calc(${R} + 3 * ${SM});top:${TT}`],
-      ['HD', 'KeyH', 'small', `right:calc(${R} + 4 * ${SM});top:${TT}`],   // (the HD look or the original's, as H)
+      ['@cam', 'KeyC', 'small', `right:${R};top:${TT}`],
+      ['@rewind', 'KeyQ', 'small', `right:calc(${R} + ${SM});top:${TT}`],
+      ['@restart', 'KeyR', 'small', `right:calc(${R} + 2 * ${SM});top:${TT}`],
+      ['@menu', 'Escape', 'small', `right:calc(${R} + 3 * ${SM});top:${TT}`],
+      ['@look', 'KeyH', 'small', `right:calc(${R} + 4 * ${SM});top:${TT}`],   // (the HD look or the original's, as H)
     ];
     const press = (code, down) => { if (typeof key === 'function') key({ code, key: code === 'Escape' ? 'Escape' : code.replace(/^Key/, '').toLowerCase(), repeat: false, preventDefault() {} }, down); };
+    // (each label black, in the game's font at the size of the game's pixels; the four arrows drawn as the game's own
+    // triangles, the font has none)
+    const ARROW = { '<': [[1, 0], [0, .5], [1, 1]], '>': [[0, 0], [1, .5], [0, 1]], '^': [[0, 1], [.5, 0], [1, 1]], 'v': [[0, 0], [.5, 1], [1, 0]] };
+    // the top row's icons, pixel art kept as grids of pixels (drawn as squares: sharp at any size), those with a state
+    // showing it: the camera the view now in use (in car, high, chase, TV), the look HD or OG
+    const ICON = {
+      menu: ["###########", "###########", "...........", "...........", "###########", "###########", "...........", "...........", "###########", "###########"],
+      rewind: ["....#....#.", "...##...##.", "..###..###.", ".####.####.", "##########.", ".####.####.", "..###..###.", "...##...##.", "....#....#."],
+      restart: ["...####.#..", "..#....##..", ".#....###..", "#..........", "#..........", "#.........#", ".#.......#.", "..#.....#..", "...#####..."],
+      hd: ["#..#.###.", "#..#.#..#", "####.#..#", "#..#.#..#", "#..#.###."],
+      og: [".##...###", "#..#.#...", "#..#.#.##", "#..#.#..#", ".##...###"],
+      cam0: ["...#####...", "..#.....#..", ".#.......#.", "#.........#", "####.#.####", "#...###...#", "#....#....#", ".#...#...#.", "..#..#..#..", "...#####..."],
+      cam1: ["#############", "......#......", "...#####.....", "..#.#...#####", "..#.#...#...#", "...#####.....", "....#..#.....", "..########..."],   // (high: the helicopter)
+      cam2: ["..#######..", ".#.......#.", "#.........#", "###########", "#.##...##.#", "###########", "##.......##"],
+      cam3: ["#.......#", ".#.....#.", "..#...#..", "#########", "#.......#", "#.......#", "#.......#", "#########", ".#.....#."],
+    };
+    const iconOf = t => t === '@cam' ? 'cam' + (r8(S.cameramode) & 3) : t === '@look' ? (typeof OG_MODE !== 'undefined' && OG_MODE ? 'og' : 'hd') : t.slice(1);
+    let painted = 0;
+    function paint() {
+      const font = typeof hudFont === 'function' && hudFont(); if (!font) return;
+      const h = document.getElementById('screen').getBoundingClientRect().height, dpr = devicePixelRatio || 1, gu = Math.max(1.5, Math.min(3, h / 200));
+      root.style.setProperty('--tb', Math.max(2, Math.round(gu * 1.5)) + 'px');   // (the edges a little stronger than the dialogs': these sit over the 3D view)
+      const key = font.length + '|' + gu + '|' + dpr + '|' + iconOf('@cam') + '|' + iconOf('@look'); if (painted === key) return; painted = key;
+      for (const cv of root.querySelectorAll('button canvas')) {
+        const t = cv.dataset.t, big = cv.parentNode.classList.contains('big'), u = gu * dpr * (big ? 1.5 : 0.8), c = cv.getContext('2d');   // (small ones a size smaller, as the dialogs' buttons)
+        if (t[0] === '@') {
+          // (the empty columns either side trimmed, so each sits in the middle of its button)
+          const g0 = ICON[iconOf(t)], cols = g0.map(r => [r.indexOf('#'), r.lastIndexOf('#')]).filter(([a]) => a >= 0);
+          const x0 = Math.min(...cols.map(c => c[0])), x1 = Math.max(...cols.map(c => c[1])), g = g0.map(r => r.slice(x0, x1 + 1));
+          const px = Math.max(2, Math.round(gu * dpr * 0.85)), w = x1 - x0 + 1;
+          cv.width = w * px; cv.height = g.length * px; c.fillStyle = '#000';
+          g.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] === '#') c.fillRect(x * px, y * px, px, px); });
+        } else if (ARROW[t]) {
+          const n = Math.round(9 * u); cv.width = n; cv.height = n; c.fillStyle = '#000'; c.beginPath();
+          ARROW[t].forEach(([x, y], i) => c[i ? 'lineTo' : 'moveTo'](Math.round(x * n), Math.round(y * n))); c.fill();
+        } else {
+          const m = document.createElement('canvas').getContext('2d'), w = hudText(m, font, t, 0, 8 * u, u, 'left', 0, 0, '0,0,0', false);
+          cv.width = Math.max(1, Math.ceil(w)); cv.height = Math.ceil(9 * u);
+          hudText(c, font, t, 0, 8 * u, u, 'left', 1, 0, '0,0,0', false);
+        }
+        cv.style.width = cv.width / dpr + 'px'; cv.style.height = cv.height / dpr + 'px';
+      }
+    }
     for (const [label, code, cls, place] of BUTTONS) {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = cls; b.style.cssText = place;
+      const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.style.cssText = place;
+      const cv = document.createElement('canvas'); cv.dataset.t = label; b.appendChild(cv);
       b.setAttribute('aria-label', code);
       let id = null;
       const up = e => { if (e.pointerId !== id) return; id = null; b.classList.remove('down'); press(code, false); };
@@ -374,10 +422,12 @@
       const on = used && !!race && !document.getElementById('setup');
       root.classList.toggle('portrait', on && innerHeight > innerWidth * 1.1);
       root.classList.toggle('auto', !!r8(PS + 0xcc));   // (gears up and down only with the manual gearbox)
+      if (shown) paint();   // (a state an icon shows changed: the camera, the look; paint() does nothing otherwise)
       if (on === shown) return;
-      shown = on; root.classList.toggle('on', on);
+      shown = on; root.classList.toggle('on', on); if (on) paint();
       if (!on) for (const b of root.querySelectorAll('button.down')) { b.classList.remove('down'); press(b.getAttribute('aria-label'), false); }
     }, 150);
+    addEventListener('resize', () => { if (shown) paint(); });
     return { root };
   })();
 
