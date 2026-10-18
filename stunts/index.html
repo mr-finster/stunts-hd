@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Stunts HD (4D Sports Driving)</title>
 <meta name="description" content="Stunts HD: the 1990 Stunts (4D Sports Driving) recompiled for your browser and desktop: HD 3D, widescreen, smooth at any refresh rate, the original's own physics, cars and opponents. Bring your own copy.">
 <meta property="og:title" content="Stunts HD (4D Sports Driving), recompiled for browser and desktop">
@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" href="media/favicon.png">
 <link rel="apple-touch-icon" href="media/apple-touch-icon.png">
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; touch-action: manipulation; }   /* (no double-tap zoom) */
   canvas[hidden] { display: none !important; }
   body { cursor: none; }   /* (the game draws its own pointer) */
   canvas { position: absolute; display: block; left: 50%; top: 50%; transform: translate(-50%, -50%); image-rendering: pixelated; }

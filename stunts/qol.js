@@ -65,6 +65,7 @@
     requestAnimationFrame(tick);
   };
   try { if (localStorage.getItem('stunts-perf') === '1') perfShow(true); } catch (_) {}
+  if (/[?&]perf\b/.test(location.search)) perfShow(true);   // (?perf: shown from the start, for a phone with no key for it)
 
   // ---- the game open in two tabs at once: both say so (each keeps its own copy of your files while it runs, so the
   // tab that saves last wins: a track, replay or high score saved in the other can be lost)
@@ -408,6 +409,8 @@
       document.documentElement.style.touchAction = 'none';   // (no scrolling or zooming the game by accident)
     };
     addEventListener('pointerdown', use, true);
+    // no zooming the page with two fingers either: Safari on an iPhone ignores the page's no-zoom setting, and stops only for these
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) addEventListener(ev, e => e.preventDefault(), { passive: false });
     // shown while racing (not in a replay, its panel is tapped); let go of everything when they go. Once shown they stay
     // through a stall of up to 2 s (a slow phone, a hiccup), so a held button isn't let go of in the middle of a race
     let shown = false;

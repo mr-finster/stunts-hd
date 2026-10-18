@@ -46,7 +46,7 @@
       this.scene.fog = new T.Fog(0xffffff, 9000, 90000);
       this.hemi = new T.HemisphereLight(0xdfeeff, 0x6a6048, 0.4); this.scene.add(this.hemi);
       const sun = this.sun = new T.DirectionalLight(0xfff2dc, 0.68);   // level ground: about its original colour; walls darker
-      sun.castShadow = true; sun.shadow.mapSize.set(8192, 8192);   // (texels of under half a unit round the camera: crisp edges)
+      sun.castShadow = true; sun.shadow.mapSize.setScalar(opts.phone ? 4096 : 8192);   // (texels of under half a unit round the camera: crisp edges; a phone's half that, the near map keeps close ones crisp)
       sun.shadow.camera.layers.enable(3);   // (the track's shadows cast by its pieces' low-detail shapes, on layer 3 only: see buildWorld)
       sun.shadow.bias = -0.00012; sun.shadow.normalBias = +((root.location && /[?&]nb=([\d.]+)/.exec(root.location.search)) || [0, 1.2])[1];   // (small: shadows touch what casts them)
       const sc = sun.shadow.camera; sc.left = -2600; sc.right = 2600; sc.top = 2600; sc.bottom = -2600; sc.near = 10; sc.far = 16000;

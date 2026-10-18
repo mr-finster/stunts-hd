@@ -128,7 +128,10 @@ const bgImg = bgG.createImageData(320, 200), bgPx = new Uint32Array(bgImg.data.b
     t.style.background = tod === 'dusk' ? 'linear-gradient(180deg, rgba(255,140,80,0.0) 0%, rgba(255,150,80,0.45) 45%, rgba(170,80,120,0.5) 100%)' : 'linear-gradient(180deg, rgba(10,20,70,0.55) 0%, rgba(20,40,110,0.35) 50%, rgba(0,0,20,0.35) 100%)';
     t.style.mixBlendMode = tod === 'dusk' ? 'soft-light' : 'multiply';
   } }
-const view = HIRES ? new HiresView(glCanvas, mem, pal, scene, StuntsCode.DSEG, StuntsCode.SYM, MODERN ? { world, bg } : {}) : null;
+// a phone (a touch screen and no mouse): the 3D view drawn at up to twice its page pixels, not a phone's three times (over
+// twice the pixels to draw, for little more to see), and its far shadows from a smaller map (?full: as on a computer)
+const PHONE = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches && !/[?&]full\b/.test(location.search);
+const view = HIRES ? new HiresView(glCanvas, mem, pal, scene, StuntsCode.DSEG, StuntsCode.SYM, MODERN ? { world, bg, phone: PHONE } : {}) : null;
 const NOHUD = /[?&]nohud/.test(location.search);
 const DASHM = ((/[?&]dash=(\w+)/.exec(location.search) || [])[1] || 'curve');   // (the widescreen dashboard: curve, the default; ?dash=flat the old flat colours)
 // (?dash=curve: the dashboard carried out to the sides bending down: each column further out drawn lower, on a curve that
@@ -266,7 +269,7 @@ function fit() {
   sidesCanvas.style.width = gw + 'px'; sidesCanvas.style.height = 240 * s + 'px';
   const hc = document.getElementById('hud'), dpr = devicePixelRatio || 1;
   hc.style.width = gw + 'px'; hc.style.height = 240 * s + 'px'; hc.width = Math.round(gw * dpr); hc.height = Math.round(240 * s * dpr); hud.drawn = null;
-  if (view) view.resize(Math.round(gw), Math.round(240 * s), devicePixelRatio || 1, gw / (320 * s));
+  if (view) view.resize(Math.round(gw), Math.round(240 * s), PHONE ? Math.min(2, dpr) : dpr, gw / (320 * s));
 }
 // The race display: time, speed and camera in the font and style of the game's race messages ("Fasten your
 // Seatbelt!": FONTDEF.FNT, a solid black shadow a pixel down and right), crisp in the corners of the screen,
