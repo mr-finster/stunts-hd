@@ -317,9 +317,6 @@
       #touch button.down canvas { translate: var(--tb) var(--tb); }
       #touch .big { width: clamp(64px, 17vmin, 104px); height: clamp(64px, 17vmin, 104px); }
       #touch .small { width: clamp(40px, 10vmin, 60px); height: clamp(40px, 10vmin, 60px); }
-      #touch .tip { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); padding: .6em 1em; border-radius: 8px;
-        background: rgba(0,0,0,.7); color: #fff; font: 600 15px system-ui, sans-serif; display: none; }
-      #touch.portrait .tip { display: block; }
       #touch.auto .gear { display: none; }`;
     document.head.appendChild(css);
     // (where each sits: from the screen's edges, past a phone's notch and home bar)
@@ -403,7 +400,6 @@
       b.addEventListener('contextmenu', e => e.preventDefault());
       root.appendChild(b);
     }
-    const tip = document.createElement('div'); tip.className = 'tip'; tip.textContent = '↻ Turn your phone sideways'; root.appendChild(tip);
     document.body.appendChild(root);
     let used = false;
     const use = e => {
@@ -420,7 +416,6 @@
       // (Q held: winding back runs as the Replay Menu does, the replay mode on for a moment; they stay, Q stays held)
       const race = view && view.raceView && (rwHeld || (r8(S.game_replay_mode) === 0 && (racing() || (shown && age < 2000))));
       const on = used && !!race && !document.getElementById('setup');
-      root.classList.toggle('portrait', on && innerHeight > innerWidth * 1.1);
       root.classList.toggle('auto', !!r8(PS + 0xcc));   // (gears up and down only with the manual gearbox)
       if (shown) paint();   // (a state an icon shows changed: the camera, the look; paint() does nothing otherwise)
       if (on === shown) return;

@@ -120,7 +120,7 @@ Stunts has a lively community, and other projects take different routes. All but
 
 Gamepad: stick or d-pad to steer, triggers to drive.
 
-Touch (a phone or tablet, held sideways): buttons over the race, shown once the screen is touched: steer, accelerate,
+Touch (a phone or tablet): buttons over the race, shown once the screen is touched: steer, accelerate,
 brake, gears (manual gearbox), camera, rewind (hold), restart, race menu and HD. Menus and the replay panel are tapped.
 
 ## How it works
