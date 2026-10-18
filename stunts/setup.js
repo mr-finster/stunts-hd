@@ -321,7 +321,7 @@
       </div>
       <button class="btn" id="su-open" hidden><svg class="ico" viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 5.5v10h15v-8H9.5l-2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Open your Stunts folder</button>
     </div>
-    <input type="file" id="su-file" accept=".zip,application/zip" multiple>
+    <input type="file" id="su-file" accept=".zip,application/zip,application/x-zip-compressed,application/x-zip,application/octet-stream" multiple>
     <div class="status" id="su-status"></div>
     <ol class="steps" id="su-steps">
       <li><span class="n">1</span><span class="t"><b>Open your Stunts folder or zip</b><small>Your copy of Stunts 1.1. It's read here, never uploaded.</small></span><span class="pick"></span></li>
