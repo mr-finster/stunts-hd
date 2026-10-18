@@ -41,9 +41,10 @@
   const say = window.qolSay = t => { osd.textContent = t; osd.style.opacity = 1; clearTimeout(osdT); osdT = setTimeout(() => { osd.style.opacity = 0; }, 1600); };
 
   // ---- how it runs (the key left of 1: ^ or `): frames a second on the display, the slowest frame, the game's own frames
-  // a second (20 in a race, as in 1990) and the 3D view's size; kept on or off from visit to visit
+  // a second (20 in a race, as in 1990) and the 3D view's size; kept on or off from visit to visit. At the top in the middle:
+  // clear of a phone's rounded corners and notch, and of the touch buttons and the track's name on the right
   const perf = document.createElement('div');
-  perf.style.cssText = 'position:fixed;right:8px;top:8px;padding:.35em .6em;background:rgba(0,0,0,.65);color:#9f9;font:600 12px/1.45 ui-monospace,Menlo,monospace;border-radius:4px;pointer-events:none;white-space:pre;z-index:10;display:none';
+  perf.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:max(8px, env(safe-area-inset-top));padding:.35em .6em;background:rgba(0,0,0,.65);color:#9f9;font:600 12px/1.45 ui-monospace,Menlo,monospace;border-radius:4px;pointer-events:none;white-space:pre;z-index:10;display:none';
   document.body.appendChild(perf);
   let perfOn = false;
   const perfShow = on => {
