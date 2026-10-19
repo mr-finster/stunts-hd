@@ -539,7 +539,7 @@ function frame(t) {   // t: the display frame's time (steadier than reading the 
     }
   }
   let live = false;
-  if (view) view.ogHide = OG_MODE && !keyed && !!view.raceView;
+  if (view) { view.ogHide = OG_MODE && !keyed && !!view.raceView; view.ogMask = ogView; }
   try { live = view && view.render(t, keyed); }
   catch (e) { if (!frame.failed) { frame.failed = true; console.error(e); } live = false; }   // the original picture stays
   glCanvas.hidden = !live; bgCanvas.hidden = !live || !!view.raceView || !!view.previewView;
@@ -547,7 +547,11 @@ function frame(t) {   // t: the display frame's time (steadier than reading the 
   // (the track menu's overview is a still picture: OG mode shows the original's, kept at bg + 192000; any other
   // still 3D picture made before the switch has no original pixels to show, and stays HD until drawn again)
   const ogStill = OG_MODE && keyed && !!view.previewView, og = OG_MODE && (!keyed || ogStill);
-  const ogo = og ? '0' : ''; if (glCanvas.style.opacity !== ogo) { glCanvas.style.opacity = ogo; bgCanvas.style.opacity = ogo; }   // (races: the 3D view draws its own sky)
+  // (OG mode in a race: the 3D view's canvas over the original picture, showing only your ghost (hires-view.js, ogGhostDraw);
+  // not once frames stop (paused, a dialog up): the ghost would lie over the dialog)
+  const ogGh = og && live && view.raceView && view.ogGhost && t - (view.lastFrame || 0) < 250;
+  const ogo = og && !ogGh ? '0' : '', bgo = og ? '0' : ''; if (glCanvas.style.opacity !== ogo) glCanvas.style.opacity = ogo; if (bgCanvas.style.opacity !== bgo) bgCanvas.style.opacity = bgo;   // (races: the 3D view draws its own sky)
+  const ogz = og ? '1' : ''; if (glCanvas.style.zIndex !== ogz) glCanvas.style.zIndex = ogz;
   // the race view goes past the 4:3 frame on the rows where the screen shows it edge to edge (not the
   // dashboard, D: the cockpit is only that wide); menus, dialogs, panels and the results keep to the frame,
   // from the moment they are on screen
@@ -637,10 +641,6 @@ function frame(t) {   // t: the display frame's time (steadier than reading the 
   }
   // the 3D window shows through the pixels the worker made see-through
   for (let i = 0; i < 64000; i++) { const c = scr[i]; px[i] = hole[i] && live && !og ? 0 : c === StuntsHires.KEY && mk[i] ? (ogStill ? rgb[bgU8[192000 + i]] : live && !og ? 0 : rgb[c]) : rgb[c]; }
-  // OG mode: your ghost on the original picture, the original's own see-through way (every other pixel, a checkerboard),
-  // only on the 3D view (the worker marks it, not the dashboard over it: hires-capture.js)
-  const gh = og && view && view.raceView && t - (view.lastFrame || 0) < 250 ? view.ogGhost : null;   // (not once frames stop: paused, a dialog up)
-  if (gh) for (let i = 0; i < 64000; i++) if (ogView[i] && gh[i * 4 + 3] && !(((i % 320) ^ ((i / 320) | 0)) & 1)) px[i] = 0xFF000000 | (gh[i * 4 + 2] << 16) | (gh[i * 4 + 1] << 8) | gh[i * 4];
   if (live && !og && view.stageShadow && !view.previewView && openStage(view.stageShadow)) bgG.putImageData(bgImg, 0, 0);
   g.putImageData(img, 0, 0);
   // (and only while the 3D view shows through in this very frame, or in OG mode: leaving car select or a race for the
@@ -655,7 +655,9 @@ function screenshot() {
   const dpr = window.devicePixelRatio || 1, W = Math.round(innerWidth * dpr), H = Math.round(innerHeight * dpr);
   const out = document.createElement('canvas'); out.width = W; out.height = H;
   const c = out.getContext('2d'); c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-  for (const el of document.querySelectorAll('canvas#bg, canvas#gl, canvas#sides, canvas#screen, canvas#hud')) {
+  // (in the order they show: the 3D view's over the picture in OG mode, where it holds only the ghost)
+  const layers = [...document.querySelectorAll('canvas#bg, canvas#gl, canvas#sides, canvas#screen, canvas#hud')].sort((a, b) => (+getComputedStyle(a).zIndex || 0) - (+getComputedStyle(b).zIndex || 0));
+  for (const el of layers) {
     const st = getComputedStyle(el);
     if (el.hidden || st.display === 'none' || st.visibility === 'hidden' || +st.opacity === 0 || !el.width || !el.height) continue;
     const r = el.getBoundingClientRect(), x = r.left * dpr, y = r.top * dpr, w = r.width * dpr, h = r.height * dpr;

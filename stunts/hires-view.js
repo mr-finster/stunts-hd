@@ -1897,33 +1897,52 @@ void main() {
     }
 
     // OG mode: the ghost alone, drawn at the original's 320x200 from its own camera, hidden behind the scenery (the
-    // scene's depth first, nothing coloured), read back for the page to lay on the original picture (main.js)
+    // scene's depth first, nothing coloured), then laid on the original picture here on the graphics chip: this canvas sits
+    // over the page's picture in OG mode (main.js) and shows only the ghost, the original's see-through way (every other
+    // pixel, a checkerboard), only where the 3D view is (ogMask: the worker marks it, not the dashboard over it). Nothing
+    // is read back: a picture copied back from the graphics chip made the page wait for it, and stalled a phone
     ogGhostDraw() {
-      if (!this.ghostBuf || !this.ghostBuf.mesh.visible) return;
-      // (once per game frame: the original's picture it is laid on changes 20 times a second, and the scenery's depth drawn
-      // again and the picture read back from the graphics chip each display frame, 60 times a second, stalled a phone)
-      if (this.ogOut && this.ogGhostSeq === this.seq) { this.ogGhost = this.ogOut; return; }
-      this.ogGhostSeq = this.seq;
+      if (!this.ghostBuf || !this.ghostBuf.mesh.visible || !this.ogMask) return;
       const r = this.r, sc = this.scene, gm = this.ghostBuf.mesh;
       if (!this.ogRT) {
-        this.ogRT = new T.WebGLRenderTarget(320, 200); this.ogRT.texture.encoding = T.sRGBEncoding;   // (the shapes' colours are kept linear: back to the palette's)
+        this.ogRT = new T.WebGLRenderTarget(320, 200, { minFilter: T.NearestFilter, magFilter: T.NearestFilter }); this.ogRT.texture.encoding = T.sRGBEncoding;   // (the shapes' colours are kept linear: back to the palette's)
         this.ogDepthMat = new T.MeshBasicMaterial({ colorWrite: false, side: T.DoubleSide });
         this.ogGhostMat = new T.MeshBasicMaterial({ vertexColors: true, side: T.DoubleSide, fog: false });   // (flat: the palette's colours)
-        this.ogPx = new Uint8Array(320 * 200 * 4); this.ogOut = new Uint8Array(320 * 200 * 4);
+        this.ogMaskTex = new T.DataTexture(new Uint8Array(64000), 320, 200, T.LuminanceFormat); this.ogMaskTex.minFilter = this.ogMaskTex.magFilter = T.NearestFilter;
+        this.ogLayMat = new T.ShaderMaterial({ depthTest: false, depthWrite: false, transparent: false,
+          uniforms: { ghost: { value: this.ogRT.texture }, mask: { value: this.ogMaskTex } },
+          vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+          // (game pixel x, y with y down; the mask's rows as the page has them, top down, its bytes 0 or 1; the ghost's stored as drawn, its
+          // bytes already the palette's colours: out as they are)
+          fragmentShader: `uniform sampler2D ghost; uniform sampler2D mask; varying vec2 vUv;
+            void main() {
+              vec2 p = floor(vec2(vUv.x * 320.0, (1.0 - vUv.y) * 200.0));
+              vec4 g = texture2D(ghost, (vec2(p.x, 199.0 - p.y) + 0.5) / vec2(320.0, 200.0));
+              if (g.a < 0.5 || texture2D(mask, (p + 0.5) / vec2(320.0, 200.0)).r < 0.002 || mod(p.x + p.y, 2.0) > 0.5) discard;
+              gl_FragColor = vec4(g.rgb, 1.0);
+            }` });
+        this.ogLay = new T.Mesh(new T.PlaneGeometry(2, 2), this.ogLayMat); this.ogLay.frustumCulled = false;
+        this.ogLayScene = new T.Scene(); this.ogLayScene.add(this.ogLay); this.ogLayCam = new T.Camera();
       }
-      const vis = sc.children.map(c => c.visible), mat = gm.material, sm = r.shadowMap.autoUpdate, bgc = sc.background;
-      const cc = r.getClearColor(new T.Color()), ca = r.getClearAlpha();
-      r.shadowMap.autoUpdate = false; sc.background = null;
-      r.setRenderTarget(this.ogRT); r.setClearColor(0x000000, 0); r.clear();
-      gm.visible = this.ghostDepth.visible = false; sc.overrideMaterial = this.ogDepthMat;
-      r.render(sc, this.cam);
-      sc.overrideMaterial = null; sc.children.forEach(c => { c.visible = c === gm; }); gm.material = this.ogGhostMat;
-      r.render(sc, this.cam);
-      gm.material = mat; sc.children.forEach((c, i) => { c.visible = vis[i]; });
-      sc.background = bgc; r.shadowMap.autoUpdate = sm; r.setClearColor(cc, ca);
-      r.readRenderTargetPixels(this.ogRT, 0, 0, 320, 200, this.ogPx); r.setRenderTarget(null);
-      for (let y = 0; y < 200; y++) this.ogOut.set(this.ogPx.subarray((199 - y) * 1280, (200 - y) * 1280), y * 1280);   // (rows top down)
-      this.ogGhost = this.ogOut;
+      // (the ghost drawn once per game frame: the original's picture it is laid on changes 20 times a second)
+      if (this.ogGhostSeq !== this.seq) {
+        this.ogGhostSeq = this.seq;
+        const vis = sc.children.map(c => c.visible), mat = gm.material, sm = r.shadowMap.autoUpdate, bgc = sc.background;
+        const cc = r.getClearColor(new T.Color()), ca = r.getClearAlpha();
+        r.shadowMap.autoUpdate = false; sc.background = null;
+        r.setRenderTarget(this.ogRT); r.setClearColor(0x000000, 0); r.clear();
+        gm.visible = this.ghostDepth.visible = false; sc.overrideMaterial = this.ogDepthMat;
+        r.render(sc, this.cam);
+        sc.overrideMaterial = null; sc.children.forEach(c => { c.visible = c === gm; }); gm.material = this.ogGhostMat;
+        r.render(sc, this.cam);
+        gm.material = mat; sc.children.forEach((c, i) => { c.visible = vis[i]; });
+        sc.background = bgc; r.shadowMap.autoUpdate = sm; r.setClearColor(cc, ca); r.setRenderTarget(null);
+        this.ogMaskTex.image.data.set(this.ogMask); this.ogMaskTex.needsUpdate = true;
+      }
+      // laid on the 4:3 picture, centred in this (wider) canvas
+      const sz = r.getSize(new T.Vector2()), w = sz.y * 4 / 3;
+      r.setViewport((sz.x - w) / 2, 0, w, sz.y); r.render(this.ogLayScene, this.ogLayCam); r.setViewport(0, 0, sz.x, sz.y);
+      this.ogGhost = true;
     }
 
     // A crash: a low-poly explosion instead of the original's 2D one: a burst of flat triangles (fire
