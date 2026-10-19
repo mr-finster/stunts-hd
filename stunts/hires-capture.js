@@ -325,7 +325,9 @@
       I[16 + buf * BUF + 14] = 1;   // a preview frame
       publish();
       const req = W[2] + 1; Atomics.store(W, 2, req);
-      for (let t = 0; t < 10 && Atomics.load(W, 3) !== req; t++) Atomics.wait(W, 3, Atomics.load(W, 3), 50);
+      // (up to 3 s: a big track takes the page a while on a slow phone, and its shapes freed while it still read them were
+      // drawn as giant slabs and spikes, kept in its cache for the tracks after; the page answers as soon as it is done)
+      for (let t = 0; t < 60 && Atomics.load(W, 3) !== req; t++) Atomics.wait(W, 3, Atomics.load(W, 3), 50);
     };
 
     // a crash's explosion: in the modern view the page draws its own (hires-view.js, explosions); the

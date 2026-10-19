@@ -155,7 +155,8 @@
     return m[1].replace(/[^A-Z0-9_\-]/g, '').slice(0, 8) + ext;
   }
   // a track file as the game's own are: 30 x 30 pieces, a scenery number 0-4, 30 x 30 terrain types 0-18, a 0 at the end
-  const TRK = 1802, validTrk = d => d.length === TRK && d[900] <= 4 && d[TRK - 1] === 0 && !d.subarray(901, TRK - 1).some(t => t > 0x12);
+  // (the last byte is padding, not checked: tracks with any value there load in the game, ZakStunts' ZCT211 has 152)
+  const TRK = 1802, validTrk = d => d.length === TRK && d[900] <= 4 && !d.subarray(901, TRK - 1).some(t => t > 0x12);
   const exists = name => load('stunts:' + name) != null || !!(window.stockNames && stockNames.has(name));
   function forget(name) { try { localStorage.removeItem('stunts:' + name); } catch (_) {} delete saved[name]; queue.push({ name, data: null }); }
   // adds files to the game (and this browser): { added, bad, full, taken }. A name already in use is replaced only when
@@ -319,7 +320,7 @@
       #touch button.down canvas { translate: var(--tb) var(--tb); }
       #touch .big { width: clamp(64px, 17vmin, 104px); height: clamp(64px, 17vmin, 104px); }
       #touch .small { width: clamp(40px, 10vmin, 60px); height: clamp(40px, 10vmin, 60px); }
-      #touch.auto .gear { display: none; }`;
+      #touch.auto .gear, #touch.noopp .opp { display: none; }`;
     document.head.appendChild(css);
     // (where each sits: from the screen's edges, past a phone's notch and home bar)
     const E = 'max(12px, env(safe-area-inset-left))', R = 'max(12px, env(safe-area-inset-right))', B = 'max(14px, env(safe-area-inset-bottom))', T = 'max(10px, env(safe-area-inset-top))';
@@ -340,6 +341,7 @@
       ['@restart', 'KeyR', 'small', `right:calc(${R} + 2 * ${SM});top:${TT}`],
       ['@menu', 'Escape', 'small', `right:calc(${R} + 3 * ${SM});top:${TT}`],
       ['@look', 'KeyH', 'small', `right:calc(${R} + 4 * ${SM});top:${TT}`],   // (the HD look or the original's, as H)
+      ['@opp', 'KeyT', 'small opp', `right:calc(${R} + 5 * ${SM});top:${TT}`],   // (the opponent's view, as T; only with an opponent)
     ];
     const press = (code, down) => { if (typeof key === 'function') key({ code, key: code === 'Escape' ? 'Escape' : code.replace(/^Key/, '').toLowerCase(), repeat: false, preventDefault() {} }, down); };
     // (each label black, in the game's font at the size of the game's pixels; the four arrows drawn as the game's own
@@ -356,15 +358,18 @@
       cam0: ["...#####...", "..#.....#..", ".#.......#.", "#.........#", "####.#.####", "#...###...#", "#....#....#", ".#...#...#.", "..#..#..#..", "...#####..."],
       cam1: ["#############", "......#......", "...#####.....", "..#.#...#####", "..#.#...#...#", "...#####.....", "....#..#.....", "..########..."],   // (high: the helicopter)
       cam2: ["..#######..", ".#.......#.", "#.........#", "###########", "#.##...##.#", "###########", "##.......##"],
+      // the opponent's view: two cars, the one the camera follows filled in (you on the left, the opponent on the right)
+      opp0: ["..##.....##..", ".####...#..#.", "######.#....#", "######.######", ".#..#...#..#."],
+      opp1: ["..##.....##..", ".#..#...####.", "#....#.######", "######.######", ".#..#...#..#."],
       cam3: ["#.......#", ".#.....#.", "..#...#..", "#########", "#.......#", "#.......#", "#.......#", "#########", ".#.....#."],
     };
-    const iconOf = t => t === '@cam' ? 'cam' + (r8(S.cameramode) & 3) : t === '@look' ? (typeof OG_MODE !== 'undefined' && OG_MODE ? 'og' : 'hd') : t.slice(1);
+    const iconOf = t => t === '@cam' ? 'cam' + (r8(S.cameramode) & 3) : t === '@opp' ? 'opp' + (r8(S.followOpponentFlag) ? 1 : 0) : t === '@look' ? (typeof OG_MODE !== 'undefined' && OG_MODE ? 'og' : 'hd') : t.slice(1);
     let painted = 0;
     function paint() {
       const font = typeof hudFont === 'function' && hudFont(); if (!font) return;
       const h = document.getElementById('screen').getBoundingClientRect().height, dpr = devicePixelRatio || 1, gu = Math.max(1.5, Math.min(3, h / 200));
       root.style.setProperty('--tb', Math.max(2, Math.round(gu * 1.5)) + 'px');   // (the edges a little stronger than the dialogs': these sit over the 3D view)
-      const key = font.length + '|' + gu + '|' + dpr + '|' + iconOf('@cam') + '|' + iconOf('@look'); if (painted === key) return; painted = key;
+      const key = font.length + '|' + gu + '|' + dpr + '|' + iconOf('@cam') + '|' + iconOf('@look') + '|' + iconOf('@opp'); if (painted === key) return; painted = key;
       for (const cv of root.querySelectorAll('button canvas')) {
         const t = cv.dataset.t, big = cv.parentNode.classList.contains('big'), u = gu * dpr * (big ? 1.5 : 0.8), c = cv.getContext('2d');   // (small ones a size smaller, as the dialogs' buttons)
         if (t[0] === '@') {
@@ -390,12 +395,16 @@
       const cv = document.createElement('canvas'); cv.dataset.t = label; b.appendChild(cv);
       b.setAttribute('aria-label', code);
       let id = null;
-      const up = e => { if (e.pointerId !== id) return; id = null; b.classList.remove('down'); press(code, false); };
+      // (restart: held for a moment, not tapped, so a slip of the finger doesn't throw the race away; the key itself is
+      // sent once the hold is long enough)
+      const HOLD = code === 'KeyR' ? 450 : 0; let held = 0, sent = false;
+      const up = e => { if (e.pointerId !== id) return; id = null; clearTimeout(held); b.classList.remove('down'); if (sent) press(code, false); sent = false; };
       b.addEventListener('pointerdown', e => {
         e.preventDefault(); e.stopPropagation();   // (not the game's mouse: main.js listens on the window)
         if (id != null) return;
         id = e.pointerId; try { b.setPointerCapture(id); } catch (_) {}
-        b.classList.add('down'); press(code, true);
+        b.classList.add('down');
+        if (HOLD) held = setTimeout(() => { if (id != null) { sent = true; press(code, true); } }, HOLD); else { sent = true; press(code, true); }
       });
       for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, e => { e.stopPropagation(); up(e); });
       b.addEventListener('pointermove', e => e.stopPropagation());
@@ -421,6 +430,7 @@
       const race = view && view.raceView && (rwHeld || (r8(S.game_replay_mode) === 0 && (racing() || (shown && age < 2000))));
       const on = used && !!race && !document.getElementById('setup');
       root.classList.toggle('auto', !!r8(PS + 0xcc));   // (gears up and down only with the manual gearbox)
+      root.classList.toggle('noopp', !r8(S.gameconfig + 6));   // (the opponent's view only when racing one: game_opponenttype)
       if (shown) paint();   // (a state an icon shows changed: the camera, the look; paint() does nothing otherwise)
       if (on === shown) return;
       shown = on; root.classList.toggle('on', on); if (on) paint();

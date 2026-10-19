@@ -108,6 +108,7 @@ Stunts has a lively community, and other projects take different routes. All but
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | Accelerate, brake, steer |
 | <kbd>A</kbd> <kbd>Z</kbd> | Gear up, down (manual gearbox) |
 | <kbd>C</kbd> | Camera: in car, high, chase, TV |
+| <kbd>T</kbd> | Watch your opponent instead, and back (when racing one) |
 | <kbd>H</kbd> | HD mode or OG mode |
 | <kbd>G</kbd> | Ghost car on or off |
 | <kbd>D</kbd> | Dashboard on or off |
@@ -121,7 +122,8 @@ Stunts has a lively community, and other projects take different routes. All but
 Gamepad: stick or d-pad to steer, triggers to drive.
 
 Touch (a phone or tablet): buttons over the race, shown once the screen is touched: steer, accelerate,
-brake, gears (manual gearbox), camera, rewind (hold), restart, race menu and HD. Menus and the replay panel are tapped.
+brake, gears (manual gearbox), camera, opponent's view (when racing one), rewind (hold), restart (hold), race menu and HD.
+Menus and the replay panel are tapped.
 
 ## How it works
 
