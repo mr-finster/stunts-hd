@@ -1900,6 +1900,10 @@ void main() {
     // scene's depth first, nothing coloured), read back for the page to lay on the original picture (main.js)
     ogGhostDraw() {
       if (!this.ghostBuf || !this.ghostBuf.mesh.visible) return;
+      // (once per game frame: the original's picture it is laid on changes 20 times a second, and the scenery's depth drawn
+      // again and the picture read back from the graphics chip each display frame, 60 times a second, stalled a phone)
+      if (this.ogOut && this.ogGhostSeq === this.seq) { this.ogGhost = this.ogOut; return; }
+      this.ogGhostSeq = this.seq;
       const r = this.r, sc = this.scene, gm = this.ghostBuf.mesh;
       if (!this.ogRT) {
         this.ogRT = new T.WebGLRenderTarget(320, 200); this.ogRT.texture.encoding = T.sRGBEncoding;   // (the shapes' colours are kept linear: back to the palette's)
