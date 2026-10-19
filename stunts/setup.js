@@ -376,6 +376,7 @@
             <span><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></span><span>Accelerate, brake, steer</span>
             <span><kbd>A</kbd> <kbd>Z</kbd></span><span>Gear up, down (manual gearbox)</span>
             <span><kbd>C</kbd></span><span>Change camera: in car, high, chase, TV</span>
+            <span><kbd>T</kbd></span><span>Watch your opponent instead, and back (when racing one)</span>
             <span><kbd>H</kbd></span><span>HD mode or OG mode</span>
             <span><kbd>G</kbd></span><span>Ghost car on and off (once you have a best lap)</span>
             <span><kbd>D</kbd></span><span>Dashboard on and off</span>
@@ -387,6 +388,7 @@
             <span><kbd>^</kbd> / <kbd>&#96;</kbd></span><span>How it runs: frames a second, slowest frame (the key left of 1)</span>
           </div>
           <p style="margin-top:.7rem">Gamepad: stick or d-pad to steer, triggers to drive.</p>
+          <p>Touch: buttons over the race, once the screen is touched. On a phone, <a href="?perf">add ?perf to the address</a> to see how it runs.</p>
         </div></span>
       <span class="info"><button class="lnk" aria-expanded="false">${SIGN.opp}Known issues</button>
         <div class="pop">
