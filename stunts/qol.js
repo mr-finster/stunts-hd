@@ -440,6 +440,51 @@
     return { root };
   })();
 
+  // ---- the Replay Menu's Re-Start Driving picked by touch (its rows are small, next to Continue Driving): asked first, in
+  // the game's own style (grey, light and dark edges, its font); the game waits meanwhile (worker.js, show_dialog)
+  (() => {
+    if (typeof ogI === 'undefined' || ogI.length < 8) return;
+    const css = document.createElement('style');
+    css.textContent = `
+      #rsask { position: fixed; inset: 0; z-index: 12; display: none; place-items: center; background: rgba(0,0,0,.35); touch-action: none; }
+      #rsask.on { display: grid; }
+      #rsask .p { background: #aaa; padding: var(--g) calc(var(--g) * 1.5); display: grid; gap: var(--g); justify-items: center;
+        box-shadow: inset var(--e) var(--e) 0 #fff, inset calc(-1 * var(--e)) calc(-1 * var(--e)) 0 #555; }
+      #rsask .row { display: flex; gap: var(--g); }
+      #rsask button { border: 0; border-radius: 0; background: #aaa; padding: calc(var(--g) * .6) var(--g); -webkit-tap-highlight-color: transparent;
+        box-shadow: inset var(--e) var(--e) 0 #fff, inset calc(-1 * var(--e)) calc(-1 * var(--e)) 0 #555; }
+      #rsask button:active { box-shadow: inset var(--e) var(--e) 0 #555, inset calc(-1 * var(--e)) calc(-1 * var(--e)) 0 #fff; }
+      #rsask canvas { display: block; position: static; transform: none; image-rendering: pixelated; pointer-events: none; }`;   /* (not placed as the game's canvases are) */
+    document.head.appendChild(css);
+    const box = document.createElement('div'); box.id = 'rsask';
+    box.innerHTML = '<div class="p"><canvas data-t="Restart the race?"></canvas><div class="row"><button data-v="1"><canvas data-t="Restart"></canvas></button><button data-v="0"><canvas data-t="Cancel"></canvas></button></div></div>';
+    document.body.appendChild(box);
+    let asked = 0;
+    const answer = v => { box.classList.remove('on'); Atomics.store(ogI, 7, v); Atomics.store(ogI, 6, asked); Atomics.notify(ogI, 6); };
+    for (const b of box.querySelectorAll('button')) b.addEventListener('pointerup', e => { e.stopPropagation(); answer(+b.dataset.v); });
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup']) box.addEventListener(ev, e => e.stopPropagation());   // (not the game's mouse)
+    const paint = () => {
+      const font = typeof hudFont === 'function' && hudFont(); if (!font) return false;
+      const dpr = devicePixelRatio || 1, gu = Math.max(1.5, Math.min(3, document.getElementById('screen').getBoundingClientRect().height / 200));
+      box.style.setProperty('--g', Math.round(gu * 6) + 'px'); box.style.setProperty('--e', Math.max(2, Math.round(gu)) + 'px');
+      for (const cv of box.querySelectorAll('canvas')) {
+        const u = gu * dpr * (cv.parentNode.tagName === 'BUTTON' ? 1 : 1.2), m = document.createElement('canvas').getContext('2d');
+        const w = hudText(m, font, cv.dataset.t, 0, 8 * u, u, 'left', 0, 0, '0,0,0', false);
+        cv.width = Math.max(1, Math.ceil(w)); cv.height = Math.ceil(9 * u);
+        hudText(cv.getContext('2d'), font, cv.dataset.t, 0, 8 * u, u, 'left', 1, 0, '0,0,0', false);
+        cv.style.width = cv.width / dpr + 'px'; cv.style.height = cv.height / dpr + 'px';
+      }
+      return true;
+    };
+    setInterval(() => {
+      const a = Atomics.load(ogI, 5);
+      if (a === asked || a === Atomics.load(ogI, 6)) return;
+      asked = a;
+      if (!paint()) return answer(1);   // (no font yet: nothing to ask with, as the original)
+      box.classList.add('on');
+    }, 50);
+  })();
+
   // ---- speed and gear while racing without the dashboard
   const hud = document.createElement('div');
   hud.style.cssText = 'position:fixed;pointer-events:none;color:#fff;font:700 16px ui-monospace,Menlo,monospace;text-shadow:0 0 3px #000,1px 1px 0 #000,-1px -1px 0 #000;text-align:right;z-index:5;display:none';

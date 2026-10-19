@@ -141,6 +141,28 @@ onmessage = async e => {
       Object.assign(r, save); pc.setFlags(r, save.f);
     };
   }
+  // On a touch screen the Replay Menu's rows are small and Re-Start Driving sits next to Continue Driving: picked there by
+  // touch, the page asks first (og[4]: the last press was a touch; og[5] asked, og[6] answered, og[7] the answer) and the
+  // game waits; not wanted, the game's own menu shows again. With a keyboard or mouse, as the original
+  if (og && StuntsCode.P.show_dialog) {
+    const oI = new Int32Array(og), sd = StuntsCode.P.show_dialog;
+    const isReplayMenu = (r, sp) => {   // (the "men" text: its third and fourth arguments, the text's far address)
+      const off = pc.rw(r.ss, (sp + 8) & 0xFFFF), seg = pc.rw(r.ss, (sp + 10) & 0xFFFF);
+      let t = ''; for (let i = 0; i < 160; i++) t += String.fromCharCode(pc.rb(seg, (off + i) & 0xFFFF));
+      return t.includes('Re-Start Driving');
+    };
+    StuntsCode.P.show_dialog = function (r, m, P, e) {
+      const sp = r.sp, menu = isReplayMenu(r, sp);
+      for (;;) {
+        const ret = sd(r, m, P, e);
+        if (!menu || (r.ax & 0xFFFF) !== 2 || !Atomics.load(oI, 4)) return ret;   // (2: Re-Start Driving; its caller counts from 1)
+        const ask = Atomics.add(oI, 5, 1) + 1;
+        while (Atomics.load(oI, 6) !== ask) Atomics.wait(oI, 6, Atomics.load(oI, 6), 250);
+        if (Atomics.load(oI, 7)) return ret;
+        r.sp = sp;   // (shown again, from the same call: its arguments and return address are still on the stack)
+      }
+    };
+  }
   // Music after a race: the title song's header names its instruments (4 letters each), and setting it up
   // writes over each name a pointer into the voice file. When the song is still in the game's file cache
   // (enough memory: it was not evicted during the race) but the voice file was loaded again elsewhere, the
