@@ -402,11 +402,18 @@
       <span class="info"><button class="lnk" aria-expanded="false">${SIGN.log}Changelog</button>
         <div class="pop">
           <h2>Changelog</h2>
-          <p><b>v1.5.15</b> &middot; Oct 18 2026</p>
+          <p><b>v1.5.16</b> &middot; Oct 21 2026</p>
           <ul>
+            <li>Phones run smoother, and OG mode's ghost car no longer slows them down.</li>
+            <li>Re-Start Driving in the Replay Menu asks first, so a race isn't thrown away by mistake. Touch: a T button for the opponent's view, and restart needs a short hold.</li>
+            <li>Phones and tablets: Start goes fullscreen where the browser allows it; on an iPhone, Add to Home Screen opens the game without the address bar.</li>
+            <li>The track menu's preview no longer breaks after switching tracks, and more custom tracks can be added.</li>
+            <li>?perf shows the performance box, at the top in the middle.</li>
+          </ul>
+          <details><summary>v1.5.15 &middot; Oct 18 2026</summary><ul>
             <li>Phones and tablets: touch buttons over the race to steer, drive, change gear, rewind, restart and more, in the game's own button style (thanks, brummilab!).</li>
             <li>Phones: the page no longer zooms by accident, the game runs lighter, and the zip of your game can be picked (thanks, brummilab!).</li>
-          </ul>
+          </ul></details>
           <details><summary>v1.5.14 &middot; Oct 18 2026</summary><ul>
             <li>Rewind: hold Q to take the race back a second at a time. A rewound race counts as "continued", as in the original: its time goes in no high score table.</li>
             <li>F10 saves a screenshot at your display's resolution; the key left of 1 shows how smoothly it runs (thanks, brummilab!).</li>
