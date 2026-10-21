@@ -1326,8 +1326,8 @@ void main() {
       // keep the shadow map's texels fixed on the ground while the camera moves (no shimmering edges)
       // (the shadow camera's own axes: DirectionalLightShadow looks at the target with up = sun.up, and Matrix4.lookAt
       // takes x = up × z, y = z × x, z = towards the light)
-      // (a phone: in steps of 32 texels, so the map need not be drawn again each time the camera moves, see below)
-      const tx = 2 * ext / this.sun.shadow.mapSize.x * (race && this.phone ? 32 : 1), ax = new T.Vector3().crossVectors(this.sun.up, sunDir).normalize(), ay = new T.Vector3().crossVectors(sunDir, ax);
+      // (in a race: in steps of 32 texels, so the map need not be drawn again each time the camera moves, see below)
+      const tx = 2 * ext / this.sun.shadow.mapSize.x * (race ? 32 : 1), ax = new T.Vector3().crossVectors(this.sun.up, sunDir).normalize(), ay = new T.Vector3().crossVectors(sunDir, ax);
       SUN_DIR.value.copy(sunDir);
       const fx = Math.round(focus.dot(ax) / tx) * tx, fy = Math.round(focus.dot(ay) / tx) * tx, fz = focus.dot(sunDir);
       focus = ax.multiplyScalar(fx).add(ay.multiplyScalar(fy)).addScaledVector(sunDir, fz);
@@ -1336,10 +1336,10 @@ void main() {
       SH_RANGE.value = sc.far - sc.near;
       GI_U.giSoft.value = low ? 1 : 0; GI_U.giTexW.value = 2 * ext / this.sun.shadow.mapSize.x;
       this.sun.target.updateMatrixWorld(); this.sun.updateMatrixWorld();
-      // (a phone in a race: the far map drawn again when it has moved, or every third frame for what moves in it (a windmill's
+      // (in a race: the far map drawn again when it has moved, or every third frame for what moves in it (a windmill's
       // sails); the cars and the shadows close by have maps of their own, drawn every frame. Its matrix is set as it is drawn,
       // so a map kept from an earlier frame still falls where it did)
-      const sh = this.sun.shadow; sh.autoUpdate = !(race && this.phone);
+      const sh = this.sun.shadow; sh.autoUpdate = !race;   // (it was every frame off a phone: an 8192 map, a large share of the graphics chip's work)
       if (!sh.autoUpdate) { const k = focus.x + ',' + focus.y + ',' + focus.z + ',' + ext; if (k !== this.sunKey || ++this.sunN >= 3) { sh.needsUpdate = true; this.sunKey = k; this.sunN = 0; } }
       if (this.carSuns && !this.ogHide) { this.carSunsAt(race, cars, ease, sunDir); this.nearSunAt(race, fwd, sunDir); }
       this.explosions(now, race, camWorld);
