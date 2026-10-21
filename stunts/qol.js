@@ -440,7 +440,7 @@
     return { root };
   })();
 
-  // ---- the Replay Menu's Re-Start Driving (next to Continue Driving, easily picked by mistake): asked first, in the game's
+  // ---- the Replay Menu's Re-Start Driving picked by touch (its rows are small, next to Continue Driving): asked first, in the game's
   // own style (grey, light and dark edges, its font); the game waits meanwhile (worker.js, show_dialog). Tap or click a
   // button, or with the keys: Y restarts; N, Esc or Enter cancel (Enter is what picked it by mistake)
   (() => {
@@ -460,7 +460,9 @@
     const box = document.createElement('div'); box.id = 'rsask';
     box.innerHTML = '<div class="p"><canvas data-t="Restart the race?"></canvas><div class="row"><button data-v="1"><canvas data-t="Restart"></canvas></button><button data-v="0"><canvas data-t="Cancel"></canvas></button></div></div>';
     document.body.appendChild(box);
-    let asked = 0;
+    let asked = 0, touched = false;   // (picked by touch: with a keyboard or mouse, and in the desktop app, as the original)
+    addEventListener('pointerdown', e => { touched = e.pointerType === 'touch'; }, true);
+    addEventListener('keydown', () => { touched = false; }, true);
     const key = window.qolKey;
     window.qolKey = (e, down) => {
       if (!box.classList.contains('on') || !down) return key(e, down);   // (keys let go reach the game: the Enter that picked Re-Start Driving)
@@ -490,7 +492,7 @@
       const a = Atomics.load(ogI, 5);
       if (a === asked || a === Atomics.load(ogI, 6)) return;
       asked = a;
-      if (!paint()) return answer(1);   // (no font yet: nothing to ask with, as the original)
+      if (!touched || !paint()) return answer(1);   // (not by touch, or no font yet: as the original)
       box.classList.add('on');
     }, 50);
   })();
