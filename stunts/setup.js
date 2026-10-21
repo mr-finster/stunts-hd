@@ -569,10 +569,11 @@
       up.hidden = true; open.hidden = true; start.hidden = false; again.hidden = false;
       el.classList.add('armed'); el.querySelector('#su-mine').innerHTML = mine(files);
       if (host) { start.innerHTML = start.innerHTML.replace('Start game', 'Play'); open.hidden = false; again.hidden = true; const li = el.querySelectorAll('#su-steps li'); li[1].classList.remove('off'); li[0].classList.add('done'); li[0].querySelector('.n').textContent = '\u2713'; }
-      start.onclick = () => { if (host) { let f = true; try { f = localStorage.getItem('stunts-app-full') !== '0'; } catch (_) {} if (f) host.fullscreen(true); }
-        // (a phone or tablet's browser: the game fullscreen from the start, where the browser allows it: Android does, an
+      start.onclick = ev => { if (host) { let f = true; try { f = localStorage.getItem('stunts-app-full') !== '0'; } catch (_) {} if (f) host.fullscreen(true); }
+        // (a phone or tablet's browser, started by a touch: the game fullscreen from the start, where the browser allows it
+        // (Android does; some Android phones also report a fine pointer, so the touch itself counts), an
         // iPhone does not, there Add to Home Screen opens it without the address bar, see index.html)
-        else if (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches && !matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+        else if ((ev && ev.pointerType === 'touch' || matchMedia('(pointer: coarse)').matches) && !matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
         if (closeWatch) closeWatch(); tv.pause(); if (tvUrl) URL.revokeObjectURL(tvUrl); el.remove(); st.remove(); onReady(files); };
     };
     if (ready) armed(ready);
