@@ -227,7 +227,14 @@
       switch (r.ax) {
         case 0x00: Object.assign(R, { x0: 0, x1: 639, y0: 0, y1: 199, ox: 0, oy: 0 }); r.ax = 0xFFFF; r.bx = 2; this.mousePublish(); return;
         // (mouseHold: a button still held from before a new menu came up is not pressed in it, until let go)
-        case 0x03: { let b = M[3] & 3; if (this.mouseHold) { if (b) b = 0; else this.mouseHold = false; } r.bx = b; } r.cx = cl(px() + R.ox, R.x0, R.x1); r.dx = cl(py() + R.oy, R.y0, R.y1); return;
+        // (a press that lands somewhere new, as a tap does: first the place with the button up, so the game moves its
+        // highlight there; pressed only once it has seen it, or the end screen's Race tapped did the highlighted View Replay)
+        case 0x03: {
+          let b = M[3] & 3; if (this.mouseHold) { if (b) b = 0; else this.mouseHold = false; }
+          r.cx = cl(px() + R.ox, R.x0, R.x1); r.dx = cl(py() + R.oy, R.y0, R.y1);
+          if (b && !this.mouseB && (r.cx !== this.mouseX || r.dx !== this.mouseY)) b = 0;
+          r.bx = this.mouseB = b; this.mouseX = r.cx; this.mouseY = r.dx; return;
+        }
         case 0x04: R.ox = r.cx - px(); R.oy = r.dx - py(); this.mousePublish(); return;
         // (a new range keeps the position where it is, clamped: no movement the player did not make)
         case 0x07: { const cx = cl(px() + R.ox, R.x0, R.x1); R.x0 = Math.min(r.cx, r.dx); R.x1 = Math.max(r.cx, r.dx); R.ox = cl(cx, R.x0, R.x1) - px(); this.mousePublish(); return; }
