@@ -153,6 +153,9 @@ onmessage = async e => {
     };
     StuntsCode.P.show_dialog = function (r, m, P, e) {
       const sp = r.sp, menu = isReplayMenu(r, sp);
+      // (og[4]: the dashboard as this menu is shown, plus 1: after Continue Driving, which turns it on as the original's
+      // does, the page puts back what the menu's Display Options left, main.js)
+      if (menu) Atomics.store(oI, 4, pc.rb(StuntsCode.DSEG, StuntsCode.SYM.dashb_toggle) + 1);
       // (its eight arguments as given: it writes the menu's centred place over the two that ask for it, -1, and shown
       // again from those it came out shifted)
       const args = []; for (let i = 0; i < 8; i++) args.push(pc.rw(r.ss, (sp + 4 + i * 2) & 0xFFFF));

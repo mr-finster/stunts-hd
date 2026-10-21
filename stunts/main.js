@@ -176,7 +176,7 @@ const DASH_COLS = { ANSX: { l: 5, r: 243 }, AUDI: { l: 33, r: 317 }, COUN: { l: 
   LANC: { l: 32, r: 269 }, LM02: { l: 7, r: 316 }, P962: { l: 1, r: 318 }, PC04: { l: 0, r: 244 }, PMIN: { l: 0, r: 310 }, VETT: { l: 42, r: 318 } };
 // H: HD mode or OG mode, the original's own pictures (the worker reads the shared flag; kept for next time)
 const ogFlag = new SharedArrayBuffer(32), ogI = new Int32Array(ogFlag);   // ([0] the look (OG), [1] > 0 while the game reads typed text: a high-score name, a save name;
-// [5..7]: the Replay Menu's restart asked about first, see worker.js and qol.js)
+// [4]: the dashboard the Replay Menu left, [5..7]: its restart asked about first, see worker.js and qol.js)
 const typing = () => Atomics.load(ogI, 1) > 0;
 let OG_MODE = false; try { OG_MODE = localStorage.getItem('stunts-og') === '1'; } catch (_) {}
 const LIGHT = /[?&]light\b/.test(location.search);   // (the realistic light, L: shelved; only with ?light)
@@ -557,6 +557,10 @@ function frame(t) {   // t: the display frame's time (steadier than reading the 
   if (view) { const a = (StuntsCode.DSEG << 4) + StuntsCode.SYM.dashb_toggle, inRace = !!(live && view.raceView);
     if (inRace && !frame.wasRace) { try { const v = localStorage.getItem('stunts-dash'); if (v != null) mem[a] = +v; } catch (_) {} }
     else if (inRace && frame.dashWas != null && mem[a] !== frame.dashWas) { try { localStorage.setItem('stunts-dash', String(mem[a])); } catch (_) {} }
+    // (back from the Replay Menu, once the race's clock runs again: what its Display Options left, kept and saved)
+    const clock = mem[(StuntsCode.DSEG << 4) + StuntsCode.SYM.state + 320] | mem[(StuntsCode.DSEG << 4) + StuntsCode.SYM.state + 321] << 8, left = Atomics.load(ogI, 4);
+    if (inRace && left && frame.clockWas != null && clock !== frame.clockWas) { Atomics.store(ogI, 4, 0); mem[a] = left - 1; try { localStorage.setItem('stunts-dash', String(mem[a])); } catch (_) {} }
+    frame.clockWas = inRace ? clock : null;
     frame.wasRace = inRace; frame.dashWas = inRace ? mem[a] : null; }
   if (WIDE && view) {
     const dash = live && keyed && view.raceView && !og && !!mem[(StuntsCode.DSEG << 4) + StuntsCode.SYM.dashb_toggle];   // (keyed: only while the 3D view shows this very frame: leaving for a menu, the sides went with the picture, not a few frames later)
