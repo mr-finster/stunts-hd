@@ -1336,11 +1336,11 @@ void main() {
       SH_RANGE.value = sc.far - sc.near;
       GI_U.giSoft.value = low ? 1 : 0; GI_U.giTexW.value = 2 * ext / this.sun.shadow.mapSize.x;
       this.sun.target.updateMatrixWorld(); this.sun.updateMatrixWorld();
-      // (in a race: the far map drawn again when it has moved, or every third frame for what moves in it (a windmill's
+      // (in a race: the far map drawn again when it has moved, or every 50 ms for what moves in it (a windmill's
       // sails); the cars and the shadows close by have maps of their own, drawn every frame. Its matrix is set as it is drawn,
       // so a map kept from an earlier frame still falls where it did)
       const sh = this.sun.shadow; sh.autoUpdate = !race;   // (it was every frame off a phone: an 8192 map, a large share of the graphics chip's work)
-      if (!sh.autoUpdate) { const k = focus.x + ',' + focus.y + ',' + focus.z + ',' + ext; if (k !== this.sunKey || ++this.sunN >= 3) { sh.needsUpdate = true; this.sunKey = k; this.sunN = 0; } }
+      if (!sh.autoUpdate) { const k = focus.x + ',' + focus.y + ',' + focus.z + ',' + ext; const tn = performance.now(); if (k !== this.sunKey || tn - (this.sunAt || 0) > 50) { sh.needsUpdate = true; this.sunKey = k; this.sunAt = tn; } }
       if (this.carSuns && !this.ogHide) { this.carSunsAt(race, cars, ease, sunDir); this.nearSunAt(race, fwd, sunDir); }
       this.explosions(now, race, camWorld);
       this.tyreMarks(race, cars, ease);
@@ -1441,7 +1441,7 @@ void main() {
         this.cubeCam = new T.CubeCamera(20, 80000, this.cubeRT); this.cubeN = 0;
       }
       CARENV.sky.value.copy(this.domeMat.uniforms.horizon.value);
-      if (this.cubeN++ % 3 === 0) {
+      if (performance.now() - (this.cubeAt || 0) > 100) { this.cubeAt = performance.now();   // (the car's reflections: 10 times a second, not every third display frame)
         const M = ease(o), hide = [this.dynCar.mesh, this.dynShadow.mesh, this.stage], vis = hide.map(m => m.visible);
         hide.forEach(m => { m.visible = false; });
         this.cubeCam.position.set(M[3], M[7] + 12, M[11]); this.cubeCam.updateMatrixWorld();
@@ -1786,16 +1786,20 @@ void main() {
     nearSunAt(race, fwd, sunDir) {
       const l = this.nearSun, sc = l.shadow.camera;
       if (!race || !this.camPos) {
-        if (!l.userData.parked) { l.target.position.set(0, -1e6, 0); l.position.set(0, -1e6 + 1000, 0); l.target.updateMatrixWorld(); l.updateMatrixWorld(); l.shadow.needsUpdate = l.userData.parked = true; }
+        if (!l.userData.parked) { l.target.position.set(0, -1e6, 0); l.position.set(0, -1e6 + 1000, 0); l.target.updateMatrixWorld(); l.updateMatrixWorld(); l.shadow.needsUpdate = l.userData.parked = true; this.nearKey = null; }
         return;
       }
-      const ax = new T.Vector3().crossVectors(this.sun.up, sunDir).normalize(), ay = new T.Vector3().crossVectors(sunDir, ax), tx = 2 * NEAR_SH_R / NEAR_SH_N;
+      const ax = new T.Vector3().crossVectors(this.sun.up, sunDir).normalize(), ay = new T.Vector3().crossVectors(sunDir, ax), tx = 2 * NEAR_SH_R / NEAR_SH_N * 16;   // (in steps of 16 texels: drawn again only when it moves, see below)
       const c = this.camPos.clone().addScaledVector(fwd.clone().setY(0).normalize(), NEAR_AHEAD), ss = this.sun.shadow.camera, back = this.sun.position.distanceTo(this.sun.target.position);
       const fx = Math.round(c.dot(ax) / tx) * tx, fy = Math.round(c.dot(ay) / tx) * tx, fz = c.dot(sunDir);
       l.target.position.copy(ax).multiplyScalar(fx).addScaledVector(ay, fy).addScaledVector(sunDir, fz); l.position.copy(l.target.position).addScaledVector(sunDir, back);
       if (sc.near !== ss.near || sc.far !== ss.far) { sc.near = ss.near; sc.far = ss.far; sc.updateProjectionMatrix(); }
       l.shadow.bias = this.sun.shadow.bias; l.shadow.normalBias = this.sun.shadow.normalBias;
-      l.target.updateMatrixWorld(); l.updateMatrixWorld(); l.shadow.needsUpdate = true; l.userData.parked = false;
+      l.target.updateMatrixWorld(); l.updateMatrixWorld(); l.userData.parked = false;
+      // (drawn again when it has moved, or every 50 ms for what moves in it: drawn every display frame, twice as often on a
+      // 120 Hz screen, it was a large share of the graphics chip's work; its matrix is set as it is drawn, so a kept map falls where it did)
+      const k = fx + ',' + fy + ',' + fz, tn = performance.now();
+      if (k !== this.nearKey || tn - (this.nearAt || 0) > 50) { l.shadow.needsUpdate = true; this.nearKey = k; this.nearAt = tn; }
     }
 
     // Your best run on each track, raced again as a see-through ghost car. While you drive, the car's place is
