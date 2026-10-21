@@ -707,5 +707,6 @@
       addEventListener('keydown', esc);
     });
   }
-  root.StuntsSetup = { load, store, forget, show, collect, complete: files => !missing(files).length };
+  root.StuntsSetup = { load, store, forget, show, collect, complete: files => !missing(files).length,
+    version: (/<b>v([\d.]+)<\/b>/.exec(HTML) || [])[1] || '' };   // (the newest in the changelog)
 })(self);

@@ -326,6 +326,8 @@ function drawHud(t, race, shown) {
     c.clearRect(0, 0, hc.width, H);
     const w = hudText(c, hud.def, '(H) HD MODE', m, m + 8 * small, small, 'left', 0.75);
     hudText(c, hud.def, OG_MODE ? 'OFF' : 'ON', m + w + 12 * small, m + 8 * small, small, 'left', 1, 0, '255,247,33');
+    // (the version, bottom left: the newest in the changelog, and the site's build)
+    if (window.StuntsSetup && StuntsSetup.version) hudText(c, hud.def, 'V' + StuntsSetup.version + (/^[0-9a-f]+$/.test(self.stuntsBuild) ? ' ' + self.stuntsBuild.slice(0, 6).toUpperCase() : ''), m, H - m, small, 'left', 0.5);
     if (LIGHT && !OG_MODE && view.giAvail !== false) { const w2 = hudText(c, hud.def, '(L) LIGHTING', m, m + 19 * small, small, 'left', 0.75); hudText(c, hud.def, view.giOn ? 'REALISTIC' : 'CLASSIC', m + w2 + 12 * small, m + 19 * small, small, 'left', 1, 0, '255,247,33'); }
     return;
   }
