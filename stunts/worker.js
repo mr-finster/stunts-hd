@@ -141,9 +141,9 @@ onmessage = async e => {
       Object.assign(r, save); pc.setFlags(r, save.f);
     };
   }
-  // On a touch screen the Replay Menu's rows are small and Re-Start Driving sits next to Continue Driving: picked there by
-  // touch, the page asks first (og[4]: the last press was a touch; og[5] asked, og[6] answered, og[7] the answer) and the
-  // game waits; not wanted, the game's own menu shows again. With a keyboard or mouse, as the original
+  // Re-Start Driving in the Replay Menu sits next to Continue Driving, and picked by mistake it throws the race away: the
+  // page asks first (og[5] asked, og[6] answered, og[7] the answer) and the game waits; not wanted, the game's own menu
+  // shows again
   if (og && StuntsCode.P.show_dialog) {
     const oI = new Int32Array(og), sd = StuntsCode.P.show_dialog;
     const isReplayMenu = (r, sp) => {   // (the "men" text: its third and fourth arguments, the text's far address)
@@ -153,13 +153,17 @@ onmessage = async e => {
     };
     StuntsCode.P.show_dialog = function (r, m, P, e) {
       const sp = r.sp, menu = isReplayMenu(r, sp);
+      // (its eight arguments as given: it writes the menu's centred place over the two that ask for it, -1, and shown
+      // again from those it came out shifted)
+      const args = []; for (let i = 0; i < 8; i++) args.push(pc.rw(r.ss, (sp + 4 + i * 2) & 0xFFFF));
       for (;;) {
         const ret = sd(r, m, P, e);
-        if (!menu || (r.ax & 0xFFFF) !== 2 || !Atomics.load(oI, 4)) return ret;   // (2: Re-Start Driving; its caller counts from 1)
+        if (!menu || (r.ax & 0xFFFF) !== 2) return ret;   // (2: Re-Start Driving; its caller counts from 1)
         const ask = Atomics.add(oI, 5, 1) + 1;
         while (Atomics.load(oI, 6) !== ask) Atomics.wait(oI, 6, Atomics.load(oI, 6), 250);
         if (Atomics.load(oI, 7)) return ret;
         r.sp = sp;   // (shown again, from the same call: its arguments and return address are still on the stack)
+        for (let i = 0; i < 8; i++) pc.ww(r.ss, (sp + 4 + i * 2) & 0xFFFF, args[i]);
       }
     };
   }

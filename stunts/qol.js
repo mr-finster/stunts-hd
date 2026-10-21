@@ -440,26 +440,39 @@
     return { root };
   })();
 
-  // ---- the Replay Menu's Re-Start Driving picked by touch (its rows are small, next to Continue Driving): asked first, in
-  // the game's own style (grey, light and dark edges, its font); the game waits meanwhile (worker.js, show_dialog)
+  // ---- the Replay Menu's Re-Start Driving (next to Continue Driving, easily picked by mistake): asked first, in the game's
+  // own style (grey, light and dark edges, its font); the game waits meanwhile (worker.js, show_dialog). Tap or click a
+  // button, or with the keys: left and right choose (Cancel at first), Enter answers, Y restarts, N or Esc cancels
   (() => {
     if (typeof ogI === 'undefined' || ogI.length < 8) return;
     const css = document.createElement('style');
     css.textContent = `
-      #rsask { position: fixed; inset: 0; z-index: 12; display: none; place-items: center; background: rgba(0,0,0,.35); touch-action: none; }
+      #rsask { position: fixed; inset: 0; z-index: 12; display: none; place-items: center; background: rgba(0,0,0,.35); touch-action: none; cursor: default; }
       #rsask.on { display: grid; }
       #rsask .p { background: #aaa; padding: var(--g) calc(var(--g) * 1.5); display: grid; gap: var(--g); justify-items: center;
         box-shadow: inset var(--e) var(--e) 0 #fff, inset calc(-1 * var(--e)) calc(-1 * var(--e)) 0 #555; }
       #rsask .row { display: flex; gap: var(--g); }
       #rsask button { border: 0; border-radius: 0; background: #aaa; padding: calc(var(--g) * .6) var(--g); -webkit-tap-highlight-color: transparent;
         box-shadow: inset var(--e) var(--e) 0 #fff, inset calc(-1 * var(--e)) calc(-1 * var(--e)) 0 #555; }
-      #rsask button:active { box-shadow: inset var(--e) var(--e) 0 #555, inset calc(-1 * var(--e)) calc(-1 * var(--e)) 0 #fff; }
+      #rsask button:active, #rsask button.sel { box-shadow: inset var(--e) var(--e) 0 #555, inset calc(-1 * var(--e)) calc(-1 * var(--e)) 0 #fff; }
       #rsask canvas { display: block; position: static; transform: none; image-rendering: pixelated; pointer-events: none; }`;   /* (not placed as the game's canvases are) */
     document.head.appendChild(css);
     const box = document.createElement('div'); box.id = 'rsask';
     box.innerHTML = '<div class="p"><canvas data-t="Restart the race?"></canvas><div class="row"><button data-v="1"><canvas data-t="Restart"></canvas></button><button data-v="0"><canvas data-t="Cancel"></canvas></button></div></div>';
     document.body.appendChild(box);
-    let asked = 0;
+    let asked = 0, sel = 0;
+    const btns = [...box.querySelectorAll('button')], pick = v => { sel = v; for (const b of btns) b.classList.toggle('sel', +b.dataset.v === v); };
+    const key = window.qolKey;
+    window.qolKey = (e, down) => {
+      if (!box.classList.contains('on') || !down) return key(e, down);   // (keys let go reach the game: the Enter that picked Re-Start Driving)
+      if (!e.repeat) {
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'Tab') pick(sel ? 0 : 1);
+        else if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') answer(sel);
+        else if (e.code === 'KeyY') answer(1);
+        else if (e.code === 'KeyN' || e.code === 'Escape') answer(0);
+      }
+      return true;   // (nothing reaches the game meanwhile)
+    };
     const answer = v => { box.classList.remove('on'); Atomics.store(ogI, 7, v); Atomics.store(ogI, 6, asked); Atomics.notify(ogI, 6); };
     for (const b of box.querySelectorAll('button')) b.addEventListener('pointerup', e => { e.stopPropagation(); answer(+b.dataset.v); });
     for (const ev of ['pointerdown', 'pointermove', 'pointerup']) box.addEventListener(ev, e => e.stopPropagation());   // (not the game's mouse)
@@ -481,7 +494,7 @@
       if (a === asked || a === Atomics.load(ogI, 6)) return;
       asked = a;
       if (!paint()) return answer(1);   // (no font yet: nothing to ask with, as the original)
-      box.classList.add('on');
+      pick(0); box.classList.add('on');
     }, 50);
   })();
 

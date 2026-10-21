@@ -176,9 +176,7 @@ const DASH_COLS = { ANSX: { l: 5, r: 243 }, AUDI: { l: 33, r: 317 }, COUN: { l: 
   LANC: { l: 32, r: 269 }, LM02: { l: 7, r: 316 }, P962: { l: 1, r: 318 }, PC04: { l: 0, r: 244 }, PMIN: { l: 0, r: 310 }, VETT: { l: 42, r: 318 } };
 // H: HD mode or OG mode, the original's own pictures (the worker reads the shared flag; kept for next time)
 const ogFlag = new SharedArrayBuffer(32), ogI = new Int32Array(ogFlag);   // ([0] the look (OG), [1] > 0 while the game reads typed text: a high-score name, a save name;
-// [4..7]: the Replay Menu's restart asked about on a touch screen, see worker.js and qol.js)
-addEventListener('pointerdown', e => Atomics.store(ogI, 4, e.pointerType === 'touch' ? 1 : 0), true);
-addEventListener('keydown', () => Atomics.store(ogI, 4, 0), true);
+// [5..7]: the Replay Menu's restart asked about first, see worker.js and qol.js)
 const typing = () => Atomics.load(ogI, 1) > 0;
 let OG_MODE = false; try { OG_MODE = localStorage.getItem('stunts-og') === '1'; } catch (_) {}
 const LIGHT = /[?&]light\b/.test(location.search);   // (the realistic light, L: shelved; only with ?light)
