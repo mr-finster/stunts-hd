@@ -130,7 +130,7 @@ const bgImg = bgG.createImageData(320, 200), bgPx = new Uint32Array(bgImg.data.b
   } }
 // a phone (a touch screen and no mouse): the 3D view drawn at up to twice its page pixels, not a phone's three times (over
 // twice the pixels to draw, for little more to see), and its far shadows from a smaller map (?full: as on a computer)
-const FPS120 = /[?&]fps120\b/.test(location.search);
+const FPS60 = /[?&]fps60\b/.test(location.search);
 const PHONE = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches && !/[?&]full\b/.test(location.search);
 const view = HIRES ? new HiresView(glCanvas, mem, pal, scene, StuntsCode.DSEG, StuntsCode.SYM, MODERN ? { world, bg, phone: PHONE } : {}) : null;
 const NOHUD = /[?&]nohud/.test(location.search);
@@ -271,9 +271,9 @@ function fit() {
   sidesCanvas.style.width = gw + 'px'; sidesCanvas.style.height = 240 * s + 'px';
   const hc = document.getElementById('hud'), dpr = devicePixelRatio || 1;
   hc.style.width = gw + 'px'; hc.style.height = 240 * s + 'px'; hc.width = Math.round(gw * dpr); hc.height = Math.round(240 * s * dpr); hud.drawn = null;
-  // (the 3D view at most about 2560x1600 pixels' worth: a large Retina screen's full size was more than the graphics chip
+  // (the 3D view at most about 2880x1800 pixels' worth: a large Retina screen's full size was more than the graphics chip
   // could draw each frame; the menus and text stay at the screen's own; ?full for every pixel)
-  const px = Math.round(gw) * Math.round(240 * s), cap = /[?&]full\b/.test(location.search) ? dpr : Math.max(1, Math.min(dpr, Math.sqrt(4.1e6 / px)));
+  const px = Math.round(gw) * Math.round(240 * s), cap = /[?&]full\b/.test(location.search) ? dpr : Math.max(1, Math.min(dpr, Math.sqrt(5.2e6 / px)));
   if (view) view.resize(Math.round(gw), Math.round(240 * s), PHONE ? Math.min(2, cap) : cap, gw / (320 * s));
 }
 // The race display: time, speed and camera in the font and style of the game's race messages ("Fasten your
@@ -487,9 +487,8 @@ function pointerBox() {
   return [x, y, x + w, y + h];
 }
 function frame(t) {   // t: the display frame's time (steadier than reading the clock mid-work)
-  // (on a screen faster than 100 Hz, every other picture: a 120 Hz screen drew twice as many for a game that moves 20 times
-  // a second, and the graphics chip, shared with the whole computer, could not keep up; ?fps120 to draw them all)
-  if (!FPS120 && t - (frame.at || 0) < 10) { requestAnimationFrame(frame); return; }
+  // (?fps60: on a screen faster than 100 Hz, every other picture, for a graphics chip that can't keep up)
+  if (FPS60 && t - (frame.at || 0) < 10) { requestAnimationFrame(frame); return; }
   frame.at = t;
   // one snapshot of the screen and the see-through marks for this whole frame: the game runs on meanwhile,
   // and two layers built from different moments leave holes where pixels turned see-through in between
