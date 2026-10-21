@@ -1340,7 +1340,9 @@ void main() {
       // sails); the cars and the shadows close by have maps of their own, drawn every frame. Its matrix is set as it is drawn,
       // so a map kept from an earlier frame still falls where it did)
       const sh = this.sun.shadow; sh.autoUpdate = !race;   // (it was every frame off a phone: an 8192 map, a large share of the graphics chip's work)
-      if (!sh.autoUpdate) { const k = focus.x + ',' + focus.y + ',' + focus.z + ',' + ext; const tn = performance.now(); if (k !== this.sunKey || tn - (this.sunAt || 0) > 50) { sh.needsUpdate = true; this.sunKey = k; this.sunAt = tn; } }
+      this.slot = true;   // (one timed redraw a frame, of the far map, the near map or the car's reflections: drawn on the same frame they made it stutter; one that has moved is drawn at once)
+      if (!sh.autoUpdate) { const k = focus.x + ',' + focus.y + ',' + focus.z + ',' + ext; const tn = performance.now();
+      if (k !== this.sunKey || tn - (this.sunAt || 0) > 50 && this.takeSlot()) { sh.needsUpdate = true; this.sunKey = k; this.sunAt = tn; } }
       if (this.carSuns && !this.ogHide) { this.carSunsAt(race, cars, ease, sunDir); this.nearSunAt(race, fwd, sunDir); }
       this.explosions(now, race, camWorld);
       this.tyreMarks(race, cars, ease);
@@ -1431,7 +1433,7 @@ void main() {
       this.stripOn = true;
     }
 
-    // the car's reflections: a small cube map of the scene round the player's car (every third frame), the sky
+    // the car's reflections: a small cube map of the scene round the player's car (10 times a second), the sky
     // its background
     carReflect(cars, ease) {
       const o = cars.find(c => this.carIdx && this.carIdx.get(c.ptr) === 2);
@@ -1441,7 +1443,7 @@ void main() {
         this.cubeCam = new T.CubeCamera(20, 80000, this.cubeRT); this.cubeN = 0;
       }
       CARENV.sky.value.copy(this.domeMat.uniforms.horizon.value);
-      if (performance.now() - (this.cubeAt || 0) > 100) { this.cubeAt = performance.now();   // (the car's reflections: 10 times a second, not every third display frame)
+      if (performance.now() - (this.cubeAt || 0) > 100 && this.takeSlot()) { this.cubeAt = performance.now();   // (the car's reflections: 10 times a second, not every third display frame)
         const M = ease(o), hide = [this.dynCar.mesh, this.dynShadow.mesh, this.stage], vis = hide.map(m => m.visible);
         hide.forEach(m => { m.visible = false; });
         this.cubeCam.position.set(M[3], M[7] + 12, M[11]); this.cubeCam.updateMatrixWorld();
@@ -1783,6 +1785,8 @@ void main() {
 
     // The near map: round the camera, a little ahead, its texels fixed along the sun's axes as it moves; its depths over
     // the same range as the sun's (the same offsets and fades); drawn with everything that casts, in the main render
+    takeSlot() { if (this.slot === false) return false; this.slot = false; return true; }
+
     nearSunAt(race, fwd, sunDir) {
       const l = this.nearSun, sc = l.shadow.camera;
       if (!race || !this.camPos) {
@@ -1799,7 +1803,7 @@ void main() {
       // (drawn again when it has moved, or every 50 ms for what moves in it: drawn every display frame, twice as often on a
       // 120 Hz screen, it was a large share of the graphics chip's work; its matrix is set as it is drawn, so a kept map falls where it did)
       const k = fx + ',' + fy + ',' + fz, tn = performance.now();
-      if (k !== this.nearKey || tn - (this.nearAt || 0) > 50) { l.shadow.needsUpdate = true; this.nearKey = k; this.nearAt = tn; }
+      if (k !== this.nearKey || tn - (this.nearAt || 0) > 50 && this.takeSlot()) { l.shadow.needsUpdate = true; this.nearKey = k; this.nearAt = tn; }
     }
 
     // Your best run on each track, raced again as a see-through ghost car. While you drive, the car's place is
