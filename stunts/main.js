@@ -554,7 +554,7 @@ function frame(t) {   // t: the display frame's time (steadier than reading the 
   // dashboard, D: the cockpit is only that wide); menus, dialogs, panels and the results keep to the frame,
   // from the moment they are on screen
   // (the dashboard on or off (D) kept from race to race: saved when it changes in a race, put back as each race starts)
-  if (view) { const a = (StuntsCode.DSEG << 4) + StuntsCode.SYM.dashb_toggle, inRace = !!(live && view.raceView);
+  if (view) { const a = (StuntsCode.DSEG << 4) + StuntsCode.SYM.dashb_toggle, inRace = !!((live || OG_MODE) && view.raceView);   // (OG mode: the 3D view is drawn hidden, not live, in a race too)
     if (inRace && !frame.wasRace) { try { const v = localStorage.getItem('stunts-dash'); if (v != null) mem[a] = +v; } catch (_) {} }
     else if (inRace && frame.dashWas != null && mem[a] !== frame.dashWas) { try { localStorage.setItem('stunts-dash', String(mem[a])); } catch (_) {} }
     // (back from the Replay Menu, once the race's clock runs again: what its Display Options left, kept and saved)
