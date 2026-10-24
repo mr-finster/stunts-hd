@@ -123,7 +123,8 @@ Gamepad: stick or d-pad to steer, triggers to drive.
 
 Touch (a phone or tablet): buttons over the race, shown once the screen is touched: steer, accelerate,
 brake, gears (manual gearbox), camera, opponent's view (when racing one), rewind (hold), restart (hold), race menu and HD.
-Menus and the replay panel are tapped. To see how it runs on a phone (there's no key for it), add `?perf` to the
+Menus and the replay panel are tapped. Where the game asks for a name (a high score, saving a replay or a track), a
+Keyboard button brings up the phone's keyboard. To see how it runs on a phone (there's no key for it), add `?perf` to the
 address: [stunts-recomp.pages.dev/stunts/?perf](https://stunts-recomp.pages.dev/stunts/?perf).
 
 ## How it works

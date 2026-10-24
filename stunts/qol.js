@@ -7,7 +7,8 @@
 //   gamepad        stick or d-pad steers (partly, by how far), RT/A accelerate, LT/B brake, RB/LB gear
 //                  up/down, X camera, Y dashboard, Start menu, Back restart; in menus: d-pad, A, B
 //   touch          on a phone or tablet: buttons over the race (steer, gas, brake, gears, camera, rewind, restart,
-//                  menu, HD); menus and the replay are tapped
+//                  menu, HD); menus and the replay are tapped; where the game asks for a name (a high score, saving or
+//                  loading a replay or track) a Keyboard button brings up the phone's own keyboard
 //   switching away pauses a race (and lets go of held keys); speed and gear show while racing without the
 //   dashboard
 // Uses the page's globals: mem, k, SCAN, view, StuntsCode, saved, inbox, startAudio.
@@ -457,7 +458,60 @@
       if (!on) for (const b of root.querySelectorAll('button.down')) { b.classList.remove('down'); press(b.getAttribute('aria-label'), false); }
     }, 150);
     addEventListener('resize', () => { if (shown) paint(); });
-    return { root };
+    return { root, used: () => used };
+  })();
+
+  // ---- typing on a touch screen: where the game reads typed text (a high-score name, the save and load dialogs:
+  // typing(), main.js), a Keyboard button; tapped, it brings up the phone's own keyboard (only a tap can), and what is
+  // typed goes to the game as keys, through the page's key handler. A hidden text box takes the typing: a phone's
+  // keyboard sends no usable key presses for letters, only the text it puts in the box, so the box is compared with
+  // what was sent before (letters added: sent; taken away: Backspace). A few spaces kept at its start let Backspace
+  // reach the letters already in the game's field
+  (() => {
+    const PAD = '        ';
+    const css = document.createElement('style');
+    css.textContent = `
+      #typebtn { position: fixed; z-index: 10; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); display: none;
+        padding: .45em 1.1em; font: 700 16px ui-monospace, Menlo, monospace; color: #000; background: #a2a2a2; cursor: pointer;
+        border: 3px solid; border-color: #dcdcdc #555 #555 #dcdcdc; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+      #typebtn:active { border-color: #555 #dcdcdc #dcdcdc #555; }
+      #typebox { position: fixed; left: 50%; top: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; pointer-events: none; }`;
+    document.head.appendChild(css);
+    const btn = document.createElement('button'); btn.type = 'button'; btn.id = 'typebtn'; btn.textContent = '⌨ Keyboard';
+    const box = document.createElement('input'); box.id = 'typebox'; box.type = 'text';
+    for (const [a, v] of [['autocomplete', 'off'], ['autocorrect', 'off'], ['autocapitalize', 'characters'], ['spellcheck', 'false'], ['enterkeyhint', 'done'], ['aria-label', 'Type a name']]) box.setAttribute(a, v);
+    document.body.append(btn, box);
+    // (a character as the key that types it: letters, digits, space and a few marks; others are left out)
+    const codeOf = c => /^[a-z]$/i.test(c) ? 'Key' + c.toUpperCase() : /^[0-9]$/.test(c) ? 'Digit' + c
+      : { ' ': 'Space', '-': 'Minus', _: 'Minus', '.': 'Period', ',': 'Comma', '\'': 'Quote', '/': 'Slash', '!': 'Digit1', '+': 'Equal', '=': 'Equal' }[c];
+    const tap = (code, k) => { if (typeof key !== 'function') return; const ev = { code, key: k, repeat: false, preventDefault() {} }; key(ev, true); key(ev, false); };
+    const sendChar = c => { const code = codeOf(c); if (code) tap(code, c); };
+    let last = PAD;
+    const reset = () => { box.value = PAD; last = PAD; try { box.setSelectionRange(PAD.length, PAD.length); } catch (_) {} };
+    box.addEventListener('keydown', e => {
+      e.stopPropagation();   // (the window's own key handler would send it a second time)
+      // (letters and Backspace, from a phone's keyboard or one plugged in, change the box's text and go to the game below;
+      // the keys that change nothing in it go straight to the game)
+      if (!e.isComposing && e.keyCode !== 229 && (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Tab')) { e.preventDefault(); tap(e.key, e.key); }
+    });
+    box.addEventListener('keyup', e => e.stopPropagation());
+    box.addEventListener('input', () => {
+      const v = box.value; let i = 0;
+      while (i < v.length && i < last.length && v[i] === last[i]) i++;
+      for (let n = last.length - i; n > 0; n--) tap('Backspace', 'Backspace');
+      for (const c of v.slice(i)) sendChar(c);
+      last = v;
+      if (v.length < PAD.length) reset();   // (Backspace into the spaces: more of them for the next one)
+    });
+    btn.addEventListener('pointerdown', e => e.stopPropagation());   // (not the game's mouse)
+    btn.addEventListener('click', e => { e.stopPropagation(); reset(); box.focus({ preventScroll: true }); });
+    let shown = false;
+    setInterval(() => {
+      const on = touch.used() && typeof typing === 'function' && typing() && !document.getElementById('setup');
+      if (on === shown) return;
+      shown = on; btn.style.display = on ? 'block' : 'none';
+      if (!on) { box.blur(); reset(); }
+    }, 150);
   })();
 
   // ---- the Replay Menu's Re-Start Driving picked by touch (its rows are small, next to Continue Driving): asked first, in the game's
