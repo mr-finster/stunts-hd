@@ -210,6 +210,7 @@ onmessage = async e => {
     rewinding = true; const irq = pc.inIrq; pc.inIrq = true;   // (the timer held off while it winds back: in the replay its tick would end the race)
     try {
       pc.wb(D, SY.game_replay_mode, 2);   // (the recorded keys, as a replay plays)
+      pc.wb(D, SY.is_in_replay, 1);   // (and as a replay for the sound: driven again, each frame told the sound driver the car's state, and the engine was left silent; issue 36)
       pc.push(r, to); pc.call(r, P, 'restore_gamestate', 4); r.sp = (r.sp + 2) & 0xFFFF;
       while (pc.rw(D, fr) < to) pc.call(r, P, 'update_gamestate', 4);
     } finally { rewinding = false; pc.inIrq = irq; }
@@ -217,6 +218,7 @@ onmessage = async e => {
     pc.ww(D, SY.elapsed_time2, to); pc.ww(D, SY.gameconfig + GI.game_recordedframes, to);
     pc.wb(D, SY.game_replay_mode, 0); pc.wb(D, SY.state + GS.game_3F6autoLoadEvalFlag, 0); pc.ww(D, SY.state + GS.game_frame_in_sec, 0); pc.wb(D, SY.byte_449E6, 0);
     pc.wb(D, SY.byte_449DA, 0); pc.wb(D, SY.is_in_replay, 0);   // (the race no longer over, nor a replay: as the menu leaves them)
+    if (SY.byte_42D26 != null) pc.wb(D, SY.byte_42D26, 0);   // (the car's sounds as none playing: the next frame starts the engine and any skid again, as the car is)
     pc.wb(D, SY.byte_43966, 3);   // (and marked continued, as that menu marks a race taken up again from a rewound replay
     // (loc_24453): the results say so, and its time goes in no high score table (byte_43966 & 6))
     return to;
