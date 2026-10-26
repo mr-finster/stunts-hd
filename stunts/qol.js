@@ -504,7 +504,9 @@
       if (v.length < PAD.length) reset();   // (Backspace into the spaces: more of them for the next one)
     });
     btn.addEventListener('pointerdown', e => e.stopPropagation());   // (not the game's mouse)
-    btn.addEventListener('click', e => { e.stopPropagation(); reset(); box.focus({ preventScroll: true }); });
+    // (and the game's field emptied: a high-score name is filled in with the last one, the cursor at its start, so Backspace
+    // took nothing away and letters went in front of it; tapped to type, a name is typed afresh. Delete as a keyboard's)
+    btn.addEventListener('click', e => { e.stopPropagation(); reset(); box.focus({ preventScroll: true }); for (let i = 0; i < 24; i++) tap('Delete', 'Delete'); });
     let shown = false;
     setInterval(() => {
       const on = touch.used() && typeof typing === 'function' && typing() && !document.getElementById('setup');
