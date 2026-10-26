@@ -402,14 +402,19 @@
       <span class="info"><button class="lnk" aria-expanded="false">${SIGN.log}Changelog</button>
         <div class="pop">
           <h2>Changelog</h2>
-          <p><b>v1.5.21</b> &middot; Oct 23 2026</p>
+          <p><b>v1.5.22</b> &middot; Oct 26 2026</p>
           <ul>
+            <li>Phones and tablets: a Keyboard button where the game asks for a name (a high score, saving or loading a replay or track); tapped, it empties the name for typing afresh, and on Android the page makes room above the keyboard (thanks, brummilab!).</li>
+            <li>Car select: the Lamborghini LM-002's roof no longer cut off on the turntable.</li>
+            <li>Rewind (Q): the engine is heard again afterwards.</li>
+          </ul>
+          <details><summary>v1.5.21 &middot; Oct 23 2026</summary><ul>
             <li>Smooth and sharp: full resolution and antialiasing again, lowered only while the graphics chip can't keep up (and raised again when it can), sharper shadows, water reflections back.</li>
             <li>Much lighter on laptops: the game no longer keeps a processor core busy while it waits, the track is drawn in blocks so the shadows draw only what's near them, and the picture is handed to the browser only when it changed.</li>
             <li>Steadier motion: a game frame arriving a little late no longer makes the picture stop and jump.</li>
             <li>Cleaner picture: no streaks on sunlit walls, no dark line along the top of walls under a roof, and the opponent's colour no longer flashes on your car.</li>
             <li>Races sound as in the original (as DOSBox plays them): landings and crashes no longer pitched up and boosted, and no landing thump when the menu music starts after a race.</li>
-          </ul>
+          </ul></details>
           <details><summary>v1.5.20 &middot; Oct 22 2026</summary><ul>
             <li>Runs far lighter: smooth on laptops on battery and older graphics chips. The 3D view draws at about a million pixels (scaled up), shadows from smaller maps, a 120 Hz screen draws every other picture, and ambient occlusion is off (?full brings everything back).</li>
           </ul></details>
