@@ -2476,8 +2476,58 @@ void main() {
     }
 
     // returns false when no 3D frame is current (menus)
+    // Where a frame's time goes, for the performance box (?perf, the key left of 1): the graphics chip's own clock on each
+    // part of the picture (EXT_disjoint_timer_query_webgl2, where the browser has it: Chrome on most computers and some
+    // phones; not Safari), and the processor's time on the 3D view. Only while the box shows (prof.on): the timing costs
+    // a little itself. Each part's time is taken in turn, never one inside another (the clock allows one at a time): a
+    // shadow map drawn within the main picture ends the picture's time and starts its own, and the picture's resumes after
+    profInit() {
+      if (this.prof) return this.prof;
+      const r = this.r, gl = r.getContext(), ext = r.capabilities.isWebGL2 ? gl.getExtension('EXT_disjoint_timer_query_webgl2') : null;
+      const P = this.prof = { on: false, gpu: !!ext, sum: {}, cpu: 0, n: 0, stats: null, cur: null, q: null, pend: [], pool: [] };
+      const end = () => { if (!P.q) return; gl.endQuery(ext.TIME_ELAPSED_EXT); P.pend.push([P.q, P.cur]); P.q = null; };
+      const begin = cat => { if (!ext) return; end(); P.cur = cat; if (!cat) return; P.q = P.pool.pop() || gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, P.q); };
+      const catOf = (sc, cam) => {
+        const t = r.getRenderTarget();
+        if (t && t === this.reflRT) return 'water';
+        if (t && t.isWebGLCubeRenderTarget) return 'reflections';
+        if (t && (t === this.giRT || t === this.giDM)) return 'light';
+        if (t && t === this.ogRT) return 'ghost';
+        if (cam === this.carShCam) return 'shadows';
+        if (sc === this.scene) return 'scene';
+        return 'sky';
+      };
+      const rr = r.render.bind(r);
+      r.render = (sc, cam) => { if (!P.on) return rr(sc, cam); const was = P.cur; begin(catOf(sc, cam)); rr(sc, cam); begin(was); };
+      const sm = r.shadowMap.render.bind(r.shadowMap);
+      r.shadowMap.render = (...a) => { if (!P.on) return sm(...a); const was = P.cur; begin('shadows'); sm(...a); begin(was); };
+      P.frame = (t0, t1) => {
+        if (!P.on) return;
+        P.cpu += t1 - t0; P.n++;
+        if (ext) {
+          const lost = gl.getParameter(ext.GPU_DISJOINT_EXT);
+          while (P.pend.length && gl.getQueryParameter(P.pend[0][0], gl.QUERY_RESULT_AVAILABLE)) {
+            const [q, cat] = P.pend.shift();
+            if (!lost) P.sum[cat] = (P.sum[cat] || 0) + gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6;
+            P.pool.push(q);
+          }
+          if (P.pend.length > 400) { P.pool.push(...P.pend.map(p => p[0])); P.pend.length = 0; }   // (results that never come: dropped)
+        }
+        if (t1 - (P.at || 0) > 1000 && P.n) {
+          const n = P.n, gpu = ext ? Object.entries(P.sum).map(([k, v]) => [k, v / n]).sort((x, y) => y[1] - x[1]) : null;
+          P.stats = { cpu: P.cpu / n, gpu, gpuAll: gpu ? gpu.reduce((s, x) => s + x[1], 0) : null, px: r.getDrawingBufferSize(new T.Vector2()) };
+          P.sum = {}; P.cpu = 0; P.n = 0; P.at = t1;
+        }
+      };
+      return P;
+    }
+
     render(now, keep) {
-      if (this.modern) return this.renderModern(now, keep);
+      if (this.prof && this.prof.on) { const t0 = performance.now(), ok = this.modern ? this.renderModern(now, keep) : this.renderClassic(now, keep); this.prof.frame(t0, performance.now()); return ok; }
+      return this.modern ? this.renderModern(now, keep) : this.renderClassic(now, keep);
+    }
+
+    renderClassic(now, keep) {
       const I = this.I, seq = I[1];
       if (seq !== this.seq) {
         this.seq = seq; this.lastFrame = now;
@@ -2876,6 +2926,11 @@ vec4 giTap( vec3 p ) {
   wp4 = instanceMatrix * wp4;
   #endif
   vWPos = (modelMatrix * wp4).xyz;`);
+      // (the lights that only cast a shadow (the near map's and the cars', no brightness of their own) not lit with: their
+      // shadow is still looked up (getShadow keeps it apart, used below), but the full lighting sum for each, three times a
+      // pixel for nothing, is left out)
+      { const L = T.ShaderChunk.lights_fragment_begin, k = L.indexOf('NUM_DIR_LIGHTS > 0'), j = L.indexOf('RE_Direct( directLight, geometry, material, reflectedLight );', k);
+        if (k >= 0 && j > k) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', () => L.slice(0, j) + 'if ( directionalLight.color.r + directionalLight.color.g + directionalLight.color.b > 0.0 ) ' + L.slice(j)); }
       // shadows fade out towards the edge of the shadow map instead of stopping at a hard line
       sh.fragmentShader = sh.fragmentShader.replace('#include <shadowmap_pars_fragment>', () => T.ShaderChunk.shadowmap_pars_fragment.replace(
         'float getShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowBias, float shadowRadius, vec4 shadowCoord ) {',
@@ -2885,6 +2940,17 @@ vec4 giTap( vec3 p ) {
 // crisp, handing over to the sun's at its edge); each car's own (CAR_SH).
 float ogSunV = 1.0, ogNearV = 1.0, ogNearE = 2.0, ogCarV0 = 1.0, ogCarD0 = 0.0, ogCarV1 = 1.0, ogCarD1 = 0.0;
 uniform float shRange; uniform vec2 shFade; uniform float giSoft; uniform float giTexW;
+// (the map's four texels round the point, weighed by how near each is: made hard again below (smoothstep), its edge runs
+// straight between the texels as the soft filter's did, at a quarter of the soft filter's 16 lookups a map, each a texture
+// read and an unpacking; the shadow maps are much of what a phone's or a laptop's graphics chip spends a frame on)
+float ogShadow4( sampler2D shadowMap, vec2 shadowMapSize, float shadowBias, vec4 shadowCoord ) {
+  vec3 sc = shadowCoord.xyz / shadowCoord.w; sc.z += shadowBias;
+  if ( sc.z > 1.0 ) return 1.0;
+  vec2 p = sc.xy * shadowMapSize - 0.5, f = fract( p ), ts = 1.0 / shadowMapSize, uv = ( floor( p ) + 0.5 ) * ts;
+  float a = step( sc.z, unpackRGBAToDepth( texture2D( shadowMap, uv ) ) ), b = step( sc.z, unpackRGBAToDepth( texture2D( shadowMap, uv + vec2( ts.x, 0.0 ) ) ) );
+  float c = step( sc.z, unpackRGBAToDepth( texture2D( shadowMap, uv + vec2( 0.0, ts.y ) ) ) ), d = step( sc.z, unpackRGBAToDepth( texture2D( shadowMap, uv + ts ) ) );
+  return mix( mix( a, b, f.x ), mix( c, d, f.x ), f.y );
+}
 float getShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowBias, float shadowRadius, vec4 shadowCoord ) {
   vec2 e = abs( shadowCoord.xy / shadowCoord.w - 0.5 ) * 2.0;
   if ( max( e.x, e.y ) >= 1.0 ) return 1.0;   // (outside this map: no shadow from it, and nothing to look up)
@@ -2905,12 +2971,12 @@ float getShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowBias, floa
         lit += unpackRGBAToDepth( texture2D( shadowMap, sc.xy + vec2( cos( a ), sin( a ) ) * r * tx ) ) < zr ? 0.0 : 1.0; }
       v = lit / 16.0;
     }
-  } else v = smoothstep( 0.42, 0.58, getShadowRaw( shadowMap, shadowMapSize, shadowBias, shadowRadius, shadowCoord ) );   // (the filtered edge's middle, made hard again: it runs straight between the map's texels)
+  } else v = smoothstep( 0.42, 0.58, ogShadow4( shadowMap, shadowMapSize, shadowBias, shadowCoord ) );   // (the filtered edge's middle, made hard again: it runs straight between the map's texels)
   if ( !near ) v = mix( v, 1.0, smoothstep( 0.8, 0.98, max( e.x, e.y ) ) );   // (fading out at the map's edge; the near map hands over to the sun's instead)
   v = mix( v, 1.0, smoothstep( shFade.x, shFade.y, distance( vWPos, cameraPosition ) ) );   // (far off, a long fade by distance: the map's edge, sweeping ahead with the car, made shadows pop in)
   if ( sun ) ogSunV = v;
   else if ( near ) { ogNearV = v; ogNearE = max( e.x, e.y ); }
-  else {
+  else if ( v < 0.999 ) {   // (only in a car's shadow: elsewhere its height above the ground changes nothing)
     // (a car's shadow: how far along the sun's ray the car is, for its shadow a little lighter the higher it flies; only
     // the taps that see the car count, so the edge doesn't come out darker than the middle)
     vec3 sc = shadowCoord.xyz / shadowCoord.w; vec2 tx = 1.5 / shadowMapSize;
@@ -3030,7 +3096,8 @@ float vnoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 *
     // detail fades out where a pixel covers more than its wavelength (no shimmer in the distance)
     float px = length(fwidth(vWPos));
     float w1 = clamp(1.0 - px * 0.7 * 1.2, 0.0, 1.0), w2 = clamp(1.0 - px * 0.16 * 1.2, 0.0, 1.0), w3 = clamp(1.0 - px * 0.035 * 1.2, 0.0, 1.0);
-    float f1 = vnoise(vWPos * 0.7) - 0.5, f2 = vnoise(vWPos * 0.16) - 0.5, f3 = vnoise(vWPos * 0.035) - 0.5, f4 = vnoise(vWPos * 0.008) - 0.5;
+    // (a detail faded out entirely not worked out at all: in the distance, most of the picture, the finer ones cost nothing)
+    float f1 = w1 > 0.0 ? vnoise(vWPos * 0.7) - 0.5 : 0.0, f2 = w2 > 0.0 ? vnoise(vWPos * 0.16) - 0.5 : 0.0, f3 = w3 > 0.0 ? vnoise(vWPos * 0.035) - 0.5 : 0.0, f4 = vnoise(vWPos * 0.008) - 0.5;
     float asph = f1 * 0.12 * w1 + f2 * 0.07 * w2 + f3 * 0.07 * w3 + f4 * 0.06;                       // aggregate, patches, wear
     float stripe = (step(0.5, fract(vWPos.x / 340.0)) - 0.5) * 0.045;                               // mowing stripes along the grid
     float grass = f1 * 0.06 * w1 + f2 * 0.08 * w2 + f3 * 0.09 * w3 + f4 * 0.1 + stripe * w3;

@@ -50,6 +50,7 @@
   let perfOn = false;
   const perfShow = on => {
     perfOn = on; perf.style.display = on ? 'block' : 'none'; store('stunts-perf', on ? '1' : '0');
+    if (typeof view !== 'undefined' && view && view.profInit && view.modern) view.profInit().on = on;
     if (!on) return;
     const I = typeof sceneI !== 'undefined' ? sceneI : null, gl = document.getElementById('gl');
     let n = 0, worst = 0, last = performance.now(), t0 = last, g0 = I ? Atomics.load(I, 1) : 0;
@@ -58,8 +59,11 @@
       n++; worst = Math.max(worst, now - last); last = now;
       if (now - t0 >= 500) {
         const g = I ? Atomics.load(I, 1) : 0, dt = (now - t0) / 1000;
+        // (and where a frame's time goes, hires-view.js profInit: the graphics chip's time on each part, the processor's on the 3D view)
+        const ps = typeof view !== 'undefined' && view && view.prof && view.prof.stats;
+        const gpuTxt = !ps ? '' : ps.gpu ? `\nGPU ${ps.gpuAll.toFixed(1)} ms: ` + ps.gpu.filter(x => x[1] >= 0.05).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ') : '\nGPU timing: not in this browser';
         perf.textContent = `${Math.round(n / dt)} fps  ${worst.toFixed(1)} ms max\n` + (I ? `game frames ${Math.round((g - g0) / dt)}/s` : '')
-          + (gl && !gl.hidden && gl.width ? `  ${gl.width}\u00d7${gl.height}` : '');
+          + (gl && !gl.hidden && gl.width ? `  ${gl.width}\u00d7${gl.height}` : '') + gpuTxt + (ps ? `\nCPU 3D view ${ps.cpu.toFixed(1)} ms` : '');
         n = 0; worst = 0; t0 = now; g0 = g;
       }
       requestAnimationFrame(tick);
