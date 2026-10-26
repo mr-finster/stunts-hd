@@ -1434,14 +1434,20 @@ void main() {
       let yb = -1, bc = 0; for (const [y, c] of cnt) if (c > bc) { bc = c; yb = y; }
       if (yb < 0) return null;
       const rows = [0, 2, 4, 7].filter(d => yb - d >= Tt && NH - 1 - d >= 0);
+      // (near the last frame's place first: the horizon moves a little a frame as the camera turns, and all 1024 places, four
+      // rows of 160 pixels each, were some 650,000 comparisons a game frame on the page's own thread, a phone's real cost;
+      // all of them only when nothing near matches well)
+      const score = o => { let s = 0; for (const d of rows) { const pr = (NH - 1 - d) * 1024, gr = o0 + (yb - d) * 320; for (let x = L; x < R; x += 2) { const v = P[pr + ((o + x) & 1023)]; if (v >= 0 && v === bg[gr + x]) s++; } } return s; };
+      const total = o => { let t = 0; for (const d of rows) { const pr = (NH - 1 - d) * 1024; for (let x = L; x < R; x += 2) if (P[pr + ((o + x) & 1023)] >= 0) t++; } return t; };
       let best = 0, bs = -1, tot = 0;
-      for (let o = 0; o < 1024; o++) {
-        let s = 0;
-        for (const d of rows) { const pr = (NH - 1 - d) * 1024, gr = o0 + (yb - d) * 320; for (let x = L; x < R; x += 2) { const v = P[pr + ((o + x) & 1023)]; if (v >= 0 && v === bg[gr + x]) s++; } }
-        if (s > bs) { bs = s; best = o; }
+      if (this.skyBest != null) {
+        for (let k = -40; k <= 40; k++) { const o = (this.skyBest + k + 1024) & 1023, sc = score(o); if (sc > bs) { bs = sc; best = o; } }
+        tot = total(best);
+        if (!(tot > 40 && bs > tot * 0.9)) bs = -1;
       }
-      for (const d of rows) { const pr = (NH - 1 - d) * 1024; for (let x = L; x < R; x += 2) if (P[pr + ((best + x) & 1023)] >= 0) tot++; }
-      if (!(tot > 40 && bs > tot * 0.7)) return null;
+      if (bs < 0) { for (let o = 0; o < 1024; o++) { const sc = score(o); if (sc > bs) { bs = sc; best = o; } } tot = total(best); }
+      if (!(tot > 40 && bs > tot * 0.7)) { this.skyBest = null; return null; }
+      this.skyBest = best;
       // the sky's colour on each row (its bands), where neither sprite covers it
       const bands = new Int16Array(200).fill(-1), M = this.natSky, c = new Uint16Array(256);
       for (let y = Tt; y <= yb; y++) {
