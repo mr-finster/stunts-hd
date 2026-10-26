@@ -387,7 +387,9 @@
         // the area is repainted by the original next frame; anything larger leaves see-through trails behind
         // plus the area of the car's shadow on the stage, as the page last reported it (what was there is
         // kept under every see-through pixel, so a larger area is harmless)
-        let [a0, b0, a1, b1] = [x0, y0, x1, y1];
+        // (and a margin, most of it above: the HD car is drawn in full where the original's own, rounded to whole pixels and
+        // cut where its rect ends, came out a little smaller; the tall Lamborghini LM-002's roof was cut off on the stage, issue 40)
+        let [a0, b0, a1, b1] = [x0 - 4, y0 - 12, x1 + 4, y1 + 2];
         if (I[12] && Atomics.load(I, 1) - I[12] < 8) { a0 = Math.min(a0, I[8]); b0 = Math.min(b0, I[9]); a1 = Math.max(a1, I[10]); b1 = Math.max(b1, I[11]); }
         if (k && x1 > x0) toBackground(Math.max(L, a0), Math.min(R, a1), Math.max(T, b0), Math.min(Bt, b1));
         else I[16 + buf * BUF + 5] = I[16 + buf * BUF + 6] = 0;
