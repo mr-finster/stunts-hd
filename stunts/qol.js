@@ -125,8 +125,11 @@
   // started again
   const rw = window.qolRewind = { secs: 0 };
   let rwHeld = 0;
+  // (none with the wheel's 1:1 steering on, lgffb.js: the race wound back plays on from the recorded keys, which never
+  // steered it)
+  const noRewind = () => !!(window.stuntsWheel && stuntsWheel.noRewind);
   const rewindOnce = () => {
-    if (!racing() || !IB || !r16(S.state + 320)) return;   // (not on the line, before the clock runs: nothing to wind back)
+    if (!racing() || !IB || !r16(S.state + 320) || noRewind()) return;   // (not on the line, before the clock runs: nothing to wind back)
     queue.push({ name: 'REWIND', data: 'rewind' }); pump();
     rw.secs++;
   };
@@ -251,7 +254,8 @@
     else if (e.code === 'F10') { if (down && !e.repeat && typeof frame === 'function') frame.shot = true; mine = true; }   // (F10: a screenshot, main.js; F1-F4 are the game's own)
     else if (e.code === 'Backquote' && !(typeof typing === 'function' && typing())) { if (down && !e.repeat) perfShow(!perfOn); mine = true; }   // (the key left of 1: how it runs)
     else if (e.code === 'KeyQ' && !(typeof typing === 'function' && typing()) && (racing() || rwHeld)) {   // (Q: rewind, see above)
-      if (down && !e.repeat) { rewindStop(); rewindOnce(); rwHeld = setInterval(rewindOnce, 300); } else if (!down) rewindStop();
+      if (down && !e.repeat && noRewind()) say('Rewind is off with 1:1 steering');
+      else if (down && !e.repeat) { rewindStop(); rewindOnce(); rwHeld = setInterval(rewindOnce, 300); } else if (!down) rewindStop();
       mine = true;
     }
     else if (e.code === 'F6') { if (down) { const open = panel.style.display === 'none'; panel.style.display = open ? 'block' : 'none'; if (open) listFiles(); } mine = true; }
@@ -291,7 +295,7 @@
   const STEER_FULL = 200;   // the steering angle the stick's end stands for (it builds ~140 a second held)
   function pollPad(now) {
     const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g && g.connected) : null;
-    if (!gp) { if (pad.down.size) pad.release(); k[1032] = 0; hatAxis = -1; return; }
+    if (!gp || (window.stuntsWheel && stuntsWheel.active)) { if (pad.down.size) pad.release(); k[1032] = 0; hatAxis = -1; return; }   // (a wheel on WebHID drives instead: lgffb.js)
     const dp = dpad(gp);
     // (also the game's own joystick, on its game port: for its Joystick option and calibration, k[1032..1035]; a pad
     // without a stick, its d-pad)

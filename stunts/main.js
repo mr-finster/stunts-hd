@@ -106,6 +106,7 @@ worker.onmessage = e => {
   if (m.type === 'fatal') { try { sessionStorage.setItem('stunts-stopped', m.text); } catch (_) {} }   // (said on the welcome page after the reload)
   if (m.type === 'exit') { if (window.stuntsHost && stuntsHost.quit) stuntsHost.quit(); else location.reload(); }   // (the game's exit to DOS: in the app, the app closes; on the site, the game starts again)
   if (m.type === 'editor') document.getElementById('terrain').hidden = !m.on;
+  if (m.type === 'options') window.stuntsOptions = m.on;   // (the game's Options screen up: the Wheel button, lgffb.js)
   if (m.type === 'files') window.stockNames = new Set(m.names);
   if (m.type === 'font') { hud.def = m.def; hud.led = m.led; }
   if (m.type === 'hud') { hud.d = m; hud.at = performance.now(); }

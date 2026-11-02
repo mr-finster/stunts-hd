@@ -93,6 +93,9 @@ onmessage = async e => {
   // the track editor (load_tracks_menu_shapes is, in fact, the whole editor): the page shows its terrain button
   { const ed = StuntsCode.P.load_tracks_menu_shapes;
     StuntsCode.P.load_tracks_menu_shapes = function (r, m, P, e) { postMessage({ type: 'editor', on: true }); try { return ed(r, m, P, e); } finally { postMessage({ type: 'editor', on: false }); } }; }
+  // the Options screen (run_option_menu, as long as it is up): the page shows its Wheel button there (lgffb.js)
+  { const om = StuntsCode.P.run_option_menu;
+    if (om) StuntsCode.P.run_option_menu = function (r, m, P, e) { postMessage({ type: 'options', on: true }); try { return om(r, m, P, e); } finally { postMessage({ type: 'options', on: false }); } }; }
   const tellPrefs = () => { const a = new Uint8Array(GC); for (let i = 0; i < GC; i++) a[i] = pc.rb(StuntsCode.DSEG, CFG(StuntsCode.SYM) + i); postMessage({ type: 'prefs', data: a }); };
   for (const name of ['run_car_menu', 'run_opponent_menu', 'run_tracks_menu', 'draw_track_preview']) {   // (the preview: a track was chosen)
     const f = StuntsCode.P[name];
