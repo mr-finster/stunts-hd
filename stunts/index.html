@@ -82,7 +82,7 @@
   if (host && pref('full')) host.fullscreen(true);
   if (welcome) history.replaceState(null, '', location.pathname);
   window.stuntsBoot = { files, code };
-  try { await load(code.url); await load('main.js?v=' + self.stuntsBuild); if (!self.stuntsReloading) await load('qol.js?v=' + self.stuntsBuild); }
+  try { await load(code.url); await load('main.js?v=' + self.stuntsBuild); if (!self.stuntsReloading) { await load('qol.js?v=' + self.stuntsBuild); await load('lgffb.js?v=' + self.stuntsBuild); } }
   catch (e) { const el = document.getElementById('err'); el.hidden = false; el.textContent = e.message; }
 })();
 </script>

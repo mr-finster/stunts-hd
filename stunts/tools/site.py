@@ -10,7 +10,7 @@
 # it in their browser (boot.js) with map.json, the names and places tools/mkmap.py takes from the Restunts disassembly.
 import json, os, shutil, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); SRC = os.path.dirname(HERE); ROOT = os.path.dirname(SRC); OUT = os.path.join(ROOT, 'dist')
-PAGE = ['index.html', 'main.js', 'boot.js', 'x86dec.js', 'exefile.js', 'translate.js', 'map.json', 'setup.js', 'qol.js', 'cpu.js', 'drv86.js', 'dos.js', 'worker.js', 'opl-worklet.js',
+PAGE = ['index.html', 'main.js', 'boot.js', 'x86dec.js', 'exefile.js', 'translate.js', 'map.json', 'setup.js', 'qol.js', 'lgffb.js', 'cpu.js', 'drv86.js', 'dos.js', 'worker.js', 'opl-worklet.js',
         'hires-capture.js', 'hires-view.js', 'hires-grass.js', 'hires-ao.js', 'manifest.webmanifest']
 import json
 if not json.load(open(os.path.join(SRC, 'map.json'))).get('sum'):

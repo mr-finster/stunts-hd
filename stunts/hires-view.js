@@ -567,7 +567,7 @@ void main() {
       let nv = 0;
       for (const p of sh.prims) if (p.pat !== 0) nv += p.tri.length / 3;
       if (!nv) { this.geoCache.set(key, null); return null; }
-      const nocast = new Float32Array(nv), pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), rank = new Float32Array(nv), pat = new Float32Array(nv), lo = new Float32Array(nv * 3), one = new Float32Array(nv), spin = new Float32Array(nv), c2 = new Float32Array(nv * 2), f0 = new Float32Array(nv * 3), fn = new Float32Array(nv * 3);
+      const nocast = new Float32Array(nv), pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), rank = new Float32Array(nv), pat = new Float32Array(nv), lo = new Float32Array(nv * 3), one = new Float32Array(nv), spin = new Float32Array(nv), c2 = new Float32Array(nv * 2), f0 = new Float32Array(nv * 3), fn = new Float32Array(nv * 3), smat = new Uint8Array(nv);
       let v = 0, nSolid = 0;
       const order = sh.prims.filter(p => !seeThrough(p.pat)).concat(sh.prims.filter(p => seeThrough(p.pat)));
       for (const p of order) {
@@ -576,7 +576,7 @@ void main() {
         const c = lin(p.c), t = p.tri;
         for (let i = 0; i < t.length; i += 3, v++) {
           pos[v * 3] = t[i]; pos[v * 3 + 1] = t[i + 1]; pos[v * 3 + 2] = -t[i + 2];
-          col[v * 3] = c[0]; col[v * 3 + 1] = c[1]; col[v * 3 + 2] = c[2]; rank[v] = (p.rank + layer) * RANKS + p.idx; pat[v] = p.pat;
+          col[v * 3] = c[0]; col[v * 3 + 1] = c[1]; col[v * 3 + 2] = c[2]; rank[v] = (p.rank + layer) * RANKS + p.idx; pat[v] = p.pat; smat[v] = p.mat;
           if (p.lofs) { lo[v * 3] = p.lofs[i]; lo[v * 3 + 1] = p.lofs[i + 1]; lo[v * 3 + 2] = -p.lofs[i + 2]; }
           one[v] = p.one; spin[v] = p.slope ? -1 : p.glass ? 0.25 : 0; c2[v * 2] = p.cull2 & 0xFFFF; c2[v * 2 + 1] = p.cull2 >>> 16; nocast[v] = p.canopy ? 1 : p.ribbon || seeThrough(p.pat) && p.plane && p.plane.n[1] > 0.85 ? 2 : 0;   // (2: see-through, casts all the same: decided here, from the face's own plane, as the moving pieces' shadows decide it (DynBuf.fill); the normals three.js makes point the other way)
           if (p.f3 && p.one) { f0.set(p.f3[0], v * 3); fn.set(p.f3[1], v * 3); }
@@ -586,6 +586,7 @@ void main() {
       g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('color', new T.BufferAttribute(col, 3));
       g.setAttribute('rank', new T.BufferAttribute(rank, 1)); g.setAttribute('pat', new T.BufferAttribute(pat, 1)); g.setAttribute('lofs', new T.BufferAttribute(lo, 3)); g.setAttribute('c2', new T.BufferAttribute(c2, 2)); g.setAttribute('f0', new T.BufferAttribute(f0, 3)); g.setAttribute('fn', new T.BufferAttribute(fn, 3));
       g.setAttribute('nocast', new T.BufferAttribute(nocast, 1)); g.setAttribute('spin', new T.BufferAttribute(spin, 1));
+      g.setAttribute('smat', new T.BufferAttribute(smat, 1));   // (each face's game material: what a wheel stands on, for the kerb rumble (kerbProbe))
       g.addGroup(0, nSolid, 0); g.addGroup(nSolid, nv - nSolid, 2); g.addGroup(nSolid, nv - nSolid, 1);
       g.computeVertexNormals();   // face normals (non-indexed); three.js's shadow lookup needs a normal
       g.userData.flat = sh.flat; g.userData.key = sh.key; g.userData.roofed = sh.prims.some(p => p.roof);
@@ -1634,6 +1635,7 @@ void main() {
         return { p: hit.point.clone().addScaledVector(n, 0.2), s: side.clone().addScaledVector(n, -side.dot(n)), rank };
       };
       let added = false;
+      const kerb = [-1, -1, -1, -1], kerbFront = [1, 1, 0, 0], kerbSurf = [-1, -1, -1, -1];
       this.markFoot.footOn.value = 0;
       // (each car's wheels from its full shape, wherever it is: far off the game draws a car's low-detail shape, which has
       // none, and the car isn't drawn at all from the in-car camera; then its place comes from the game's state)
@@ -1666,6 +1668,7 @@ void main() {
           if (known) { let bd = 1e18; gw.forEach((v, k) => { const d = (v[0] - w.x) ** 2 + (-v[1] - w.z) ** 2; if (d < bd) { bd = d; idx = k; } }); }
           const surf = this.mem[D + ((st + 0xC2 + idx) & 0xFFFF)], key = ci + ':' + idx;
           const side = new T.Vector3(M[0], M[4], M[8]).normalize().multiplyScalar(Math.min(p.wheelHalf || 4, 8));
+          if (ci === 2) { kerb[idx] = this.matUnder(w); kerbFront[idx] = p.front ? 1 : 0; kerbSurf[idx] = surf; }   // (every wheel, whatever the game says it is on: a corner's kerb lies past the road's edge, and the physics there sees grass)
           const prev = X.last.get(key);
           if (surf < 2 || surf > 4) { X.last.delete(key); continue; }
           if (prev && prev.p.distanceTo(w) < 6) continue;
@@ -1681,6 +1684,26 @@ void main() {
         }
       }
       if (added) { X.g.attributes.position.needsUpdate = true; X.g.attributes.rank.needsUpdate = true; X.g.setDrawRange(0, X.n * 6); X.mesh.visible = true; }
+      this.wheelMat = kerb; this.wheelFront = kerbFront; this.wheelSurf = kerbSurf; this.wheelMatAt = performance.now();
+    }
+
+    // The game material under a wheel of your car (for the wheel's kerb rumble, lgffb.js): the physics doesn't see a kerb
+    // (past the road's edge it sees grass), the kerb being paint (its own faces, laid over the ground's), so it is found here, a ray down onto the track
+    // pieces as for the tyre marks, the topmost face (the paint over the road) at the nearest hit. -2: nothing in reach,
+    // -3: something, but none of it with a material (the plain, or a face of the original's picture not known)
+    matUnder(w) {
+      const ray = this.kerbRay || (this.kerbRay = new T.Raycaster());
+      ray.set(w.clone().setY(w.y + 25), new T.Vector3(0, -1, 0)); ray.near = 0; ray.far = 45;
+      // (the pieces near the camera, those the original drew this frame, are drawn from its picture (dyn, dynFlat), their
+      // copies in statics shrunk to nothing: the ray goes through both)
+      const hits = ray.intersectObjects(this.statics.children.concat(this.dyn.mesh, this.dynFlat.mesh), false);
+      let best = null, br = -1;
+      for (const h of hits) {
+        if (h.distance > hits[0].distance + 2) break;
+        const g = h.object.geometry, ra = g.getAttribute('rank'), r = ra && h.face ? ra.getX(h.face.a) : 0;
+        if (r > br && g.getAttribute('smat') && h.face) { br = r; best = h; }
+      }
+      return best ? best.object.geometry.getAttribute('smat').getX(best.face.a) : hits.length ? -3 : -2;
     }
 
     // Contact shadows: under each car a soft oval, darkest right under it and fading out to its edges (the sun
@@ -3209,6 +3232,7 @@ float vnoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 *
       g.setAttribute('normal', new T.BufferAttribute(this.nrm, 3).setUsage(T.DynamicDrawUsage));
       g.setAttribute('rank', new T.BufferAttribute(this.rank, 1).setUsage(T.DynamicDrawUsage));
       g.setAttribute('pat', new T.BufferAttribute(this.pat, 1).setUsage(T.DynamicDrawUsage));
+      this.smat = new Uint8Array(N); g.setAttribute('smat', new T.BufferAttribute(this.smat, 1));   // (each face's game material, for matUnder; not drawn)
       g.setAttribute('spin', new T.BufferAttribute(this.spin, 1).setUsage(T.DynamicDrawUsage));
       g.setAttribute('lofs', new T.BufferAttribute(this.lofs, 3).setUsage(T.DynamicDrawUsage));
       g.setAttribute('f0', new T.BufferAttribute(this.f0, 3).setUsage(T.DynamicDrawUsage)); g.setAttribute('fn', new T.BufferAttribute(this.fn, 3).setUsage(T.DynamicDrawUsage));
@@ -3267,7 +3291,7 @@ float vnoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 *
             this.one[v] = this.solid || (!NOSEC && (o.varA & p.cull2)) ? 0 : p.one;
             if (!(p.f3 && this.one[v])) this.fn[j] = this.fn[j + 1] = this.fn[j + 2] = 0; else { const [a, n] = p.f3; this.f0[j] = M[0] * a[0] + M[1] * a[1] + M[2] * a[2] + M[3]; this.f0[j + 1] = M[4] * a[0] + M[5] * a[1] + M[6] * a[2] + M[7]; this.f0[j + 2] = M[8] * a[0] + M[9] * a[1] + M[10] * a[2] + M[11]; this.fn[j] = M[0] * n[0] + M[1] * n[1] + M[2] * n[2]; this.fn[j + 1] = M[4] * n[0] + M[5] * n[1] + M[6] * n[2]; this.fn[j + 2] = M[8] * n[0] + M[9] * n[1] + M[10] * n[2]; }
             if (p.lofs) { const ox = p.lofs[k], oy = p.lofs[k + 1], oz = -p.lofs[k + 2]; this.lofs[j] = M[0] * ox + M[1] * oy + M[2] * oz; this.lofs[j + 1] = M[4] * ox + M[5] * oy + M[6] * oz; this.lofs[j + 2] = M[8] * ox + M[9] * oy + M[10] * oz; } else { this.lofs[j] = this.lofs[j + 1] = this.lofs[j + 2] = 0; }
-            Cc[j] = cc[0]; Cc[j + 1] = cc[1]; Cc[j + 2] = cc[2]; this.rank[v] = (p.rank + (o.layer || 0)) * RANKS + i; this.pat[v] = this.solid ? 65535 : p.pat;
+            Cc[j] = cc[0]; Cc[j + 1] = cc[1]; Cc[j + 2] = cc[2]; this.rank[v] = (p.rank + (o.layer || 0)) * RANKS + i; this.pat[v] = this.solid ? 65535 : p.pat; this.smat[v] = p.mat;
           }
         });
       }
